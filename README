@@ -7,4 +7,6 @@ This repository contains the following:
     c. The build instructions
     d. The instructions used to generate instrumented binary
     e. The instructions used to run the application binary on SKL and KNL
+    
+DOI: https://doi.org/10.5281/zenodo.3880488
 
