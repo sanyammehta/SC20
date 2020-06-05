@@ -1,0 +1,529 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c -o src/YAML_Doc.o src/YAML_Doc.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp
+Date     : 06/04/2020  19:33:20
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.                
+    2.                //@HEADER
+    3.                // ***************************************************
+    4.                //
+    5.                // HPCG: High Performance Conjugate Gradient Benchmark
+    6.                //
+    7.                // Contact:
+    8.                // Michael A. Heroux ( maherou@sandia.gov)
+    9.                // Jack Dongarra     (dongarra@eecs.utk.edu)
+   10.                // Piotr Luszczek    (luszczek@eecs.utk.edu)
+   11.                //
+   12.                // ***************************************************
+   13.                //@HEADER
+   14.                #define _GLIBCXX_USE_CXX11_ABI 0
+   15.                #include <cstdlib>
+   16.                #include <ctime>
+   17.                #include <iostream>
+   18.                #include <fstream>
+   19.                #include <sstream>
+   20.                #include "YAML_Doc.hpp"
+   21.                using namespace std;
+   22.                
+   23.                /*!
+   24.                  Sets the application name and version which will become part of the YAML doc.
+   25.                
+   26.                  @param[in] miniApp_Name application name
+   27.                  @param[in] miniApp_Version application name
+   28.                  @param[in] destination_Directory destination directory for the YAML document
+   29.                  @param[in] destination_FileName file name for the YAML document
+   30.                */
+   31.  + Ip          YAML_Doc::YAML_Doc(const std::string & miniApp_Name, const std::string & miniApp_Version, const std::string & destination_Directory, const std::string & destination_FileName) {
+   32.  +               miniAppName = miniApp_Name;
+   33.  +               miniAppVersion = miniApp_Version;
+   34.  +               destinationDirectory = destination_Directory;
+   35.  +               destinationFileName = destination_FileName;
+   36.                }
+   37.                
+   38.                //inherits the destructor from YAML_Element
+   39.                YAML_Doc::~YAML_Doc(void) {
+   40.  +             }
+   41.                
+   42.                /*!
+   43.                  Generates YAML from the elements of the document and saves it to a file.
+   44.                
+   45.                  @return returns the complete YAML document as a string
+   46.                */
+   47.                string YAML_Doc::generateYAML() {
+   48.  +               string yaml;
+   49.                
+   50.  + Ip            yaml =  yaml + miniAppName + " version: " + miniAppVersion + "\n";
+   51.                
+   52.  + 1 I-------<   for (size_t i=0; i<children.size(); i++) {
+   53.  + 1 Ip            yaml = yaml + children[i]->printYAML("");
+   54.    1--------->   }
+   55.                
+   56.                  time_t rawtime;
+   57.                  tm * ptm;
+   58.  +               time ( &rawtime );
+   59.  +               ptm = localtime(&rawtime);
+   60.                  char sdate[25];
+   61.                  //use tm_mon+1 because tm_mon is 0 .. 11 instead of 1 .. 12
+   62.  +               sprintf (sdate,"%04d.%02d.%02d.%02d.%02d.%02d",ptm->tm_year + 1900, ptm->tm_mon+1,
+   63.                      ptm->tm_mday, ptm->tm_hour, ptm->tm_min,ptm->tm_sec);
+   64.                
+   65.  +               string filename;
+   66.    Ip            if (destinationFileName=="")
+   67.  + Ip              filename = miniAppName + "-" + miniAppVersion + "_";
+   68.                  else
+   69.  +                 filename = destinationFileName;
+   70.  + Ip            filename = filename + string(sdate) + ".yaml";
+   71.    Ip            if (destinationDirectory!="" && destinationDirectory!=".") {
+   72.  +                 string mkdir_cmd = "mkdir " + destinationDirectory;
+   73.  +                 system(mkdir_cmd.c_str());
+   74.  + Ip              filename = destinationDirectory + "/" + destinationFileName;
+   75.  +               } else
+   76.  +                 filename = "./" + filename;
+   77.                
+   78.  +               ofstream myfile;
+   79.  +               myfile.open(filename.c_str());
+   80.  +               myfile << yaml;
+   81.  +               myfile.close();
+   82.  +               return yaml;
+   83.                }
+
+CC-3001 CC: IPA <unnamed>, File = move.h, Line = 193, Column = 11 
+  Tiny leaf routine "_Vector_impl"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:95) was textually inlined.
+
+CC-3001 CC: IPA <unnamed>, File = move.h, Line = 193, Column = 11 
+  Tiny routine "vector"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:391) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected.
+
+CC-3021 CC: IPA __sti___5bbf6cac_47703d79, File = iostream, Line = 74, Column = 25 
+  "Init" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA YAML_Doc, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA YAML_Doc, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA YAML_Doc, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA YAML_Doc, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA YAML_Doc, File = Geometry.hpp, Line = 114, Column = 7 
+  "~YAML_Element" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA <unnamed>, File = Geometry.hpp, Line = 114, Column = 7 
+  Tiny routine "YAML_Doc"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:31) was textually inlined.  NOT INLINED:  basic_string
+  : basic_string : __cxa_call_unexpected : operator= : operator= : ~basic_string : ~basic_string : ~YAML_Element.
+
+CC-3021 CC: IPA ~YAML_Doc, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA ~YAML_Doc, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA ~YAML_Doc, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA ~YAML_Doc, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA ~YAML_Doc, File = Geometry.hpp, Line = 114, Column = 7 
+  "~YAML_Element" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA <unnamed>, File = Geometry.hpp, Line = 114, Column = 7 
+  Tiny routine "~YAML_Doc"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:39) was textually inlined.  NOT INLINED: 
+  ~basic_string : ~basic_string : <unnamed> : ~YAML_Element : __cxa_call_unexpected.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~allocator" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "<unnamed>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~allocator" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA YAML_Doc, File = YAML_Doc.cpp, Line = 31, Column = 176 
+  Tiny routine "<unnamed>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:0) was textually inlined.  NOT INLINED:  basic_string
+  : basic_string : __cxa_call_unexpected : operator= : operator= : ~basic_string : ~basic_string.
+
+CC-3021 CC: IPA YAML_Doc, File = YAML_Doc.cpp, Line = 31, Column = 176 
+  "basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA YAML_Doc, File = YAML_Doc.cpp, Line = 31, Column = 176 
+  "basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA YAML_Doc, File = YAML_Doc.cpp, Line = 31, Column = 176 
+  "basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA YAML_Doc, File = YAML_Doc.cpp, Line = 31, Column = 176 
+  "basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA YAML_Doc, File = YAML_Doc.cpp, Line = 32, Column = 3 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA YAML_Doc, File = YAML_Doc.cpp, Line = 33, Column = 3 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA YAML_Doc, File = YAML_Doc.cpp, Line = 34, Column = 3 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA YAML_Doc, File = YAML_Doc.cpp, Line = 35, Column = 3 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA ~YAML_Doc, File = YAML_Doc.cpp, Line = 40, Column = 1 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA ~YAML_Doc, File = YAML_Doc.cpp, Line = 40, Column = 1 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA ~YAML_Doc, File = YAML_Doc.cpp, Line = 40, Column = 1 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA ~YAML_Doc, File = YAML_Doc.cpp, Line = 40, Column = 1 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA ~YAML_Doc, File = YAML_Doc.cpp, Line = 40, Column = 1 
+  "<unnamed>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 48, Column = 10 
+  "basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3165 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 50, Column = 3 
+  "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:5888) was not inlined
+  because of deferred implementation - nested Call_Landing_Label_Opr.
+
+CC-3001 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 50, Column = 3 
+  Tiny routine "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:5989) was
+  textually inlined.  NOT INLINED:  append : basic_string.
+
+CC-3001 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 50, Column = 3 
+  Tiny routine "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:5953) was
+  textually inlined.  NOT INLINED:  append : basic_string.
+
+CC-3001 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 50, Column = 3 
+  Tiny routine "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:5989) was
+  textually inlined.  NOT INLINED:  append : basic_string.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 50, Column = 3 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 50, Column = 3 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 50, Column = 3 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 50, Column = 3 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 50, Column = 3 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-6287 CC: VECTOR generateYAML, File = YAML_Doc.cpp, Line = 52 
+  A loop was not vectorized because it contains a call to function "YAML_Element::printYAML" on line 53.
+
+CC-3001 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 52, Column = 3 
+  Tiny leaf routine "size"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:805) was textually inlined.
+
+CC-3001 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 52, Column = 3 
+  Tiny leaf routine "size"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:805) was textually inlined.
+
+CC-3001 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 53, Column = 5 
+  Tiny leaf routine "operator[]"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:930) was textually inlined.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 53, Column = 5 
+  "allocator" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 53, Column = 5 
+  "basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 53, Column = 5 
+  "printYAML" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 53, Column = 5 
+  Tiny routine "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:5959) was
+  textually inlined.  NOT INLINED:  insert : basic_string.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 53, Column = 5 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 53, Column = 5 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 53, Column = 5 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 53, Column = 5 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 53, Column = 5 
+  "~allocator" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 58, Column = 3 
+  "time" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 59, Column = 3 
+  "localtime" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 62, Column = 3 
+  "sprintf" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 65, Column = 10 
+  "basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 66, Column = 3 
+  Tiny routine "operator==<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:6043) was
+  textually inlined.  NOT INLINED:  compare.
+
+CC-3165 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 67, Column = 5 
+  "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:5925) was not inlined
+  because of deferred implementation - nested Call_Landing_Label_Opr.
+
+CC-3001 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 67, Column = 5 
+  Tiny routine "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:5953) was
+  textually inlined.  NOT INLINED:  append : basic_string.
+
+CC-3001 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 67, Column = 5 
+  Tiny routine "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:5989) was
+  textually inlined.  NOT INLINED:  append : basic_string.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 67, Column = 5 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 67, Column = 5 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 67, Column = 5 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 67, Column = 5 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 69, Column = 5 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 70, Column = 3 
+  "allocator" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 70, Column = 3 
+  "basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 70, Column = 3 
+  Tiny routine "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:5959) was
+  textually inlined.  NOT INLINED:  insert : basic_string.
+
+CC-3001 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 70, Column = 3 
+  Tiny routine "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:5989) was
+  textually inlined.  NOT INLINED:  append : basic_string.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 70, Column = 3 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 70, Column = 3 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 70, Column = 3 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 70, Column = 3 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 70, Column = 3 
+  "~allocator" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 71, Column = 3 
+  Tiny routine "operator!=<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:6081) was
+  textually inlined.  NOT INLINED:  compare.
+
+CC-3001 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 71, Column = 3 
+  Tiny routine "operator!=<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:6081) was
+  textually inlined.  NOT INLINED:  compare.
+
+CC-3165 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 72, Column = 12 
+  "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:1157) was not inlined
+  because of deferred implementation - nested Call_Landing_Label_Opr.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 73, Column = 5 
+  "c_str" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 73, Column = 5 
+  "system" was not inlined because the compiler was unable to locate the routine.
+
+CC-3165 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 74, Column = 5 
+  "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:5925) was not inlined
+  because of deferred implementation - nested Call_Landing_Label_Opr.
+
+CC-3001 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 74, Column = 5 
+  Tiny routine "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:5953) was
+  textually inlined.  NOT INLINED:  append : basic_string.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 74, Column = 5 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 74, Column = 5 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 74, Column = 5 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 75, Column = 3 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3165 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 76, Column = 5 
+  "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Doc.cpp:1157) was not inlined
+  because of deferred implementation - nested Call_Landing_Label_Opr.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 76, Column = 5 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 76, Column = 5 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 78, Column = 12 
+  "<unnamed>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 79, Column = 3 
+  "c_str" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 79, Column = 3 
+  "open" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 80, Column = 3 
+  "operator<<<char, char_traits<char>, allocator<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 81, Column = 3 
+  "close" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 82, Column = 3 
+  "<unnamed>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA generateYAML, File = YAML_Doc.cpp, Line = 82, Column = 3 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

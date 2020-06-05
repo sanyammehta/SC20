@@ -1,0 +1,668 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c -o src/YAML_Element.o src/YAML_Element.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp
+Date     : 06/04/2020  19:33:20
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.                 
+    2.                 //@HEADER
+    3.                 // ***************************************************
+    4.                 //
+    5.                 // HPCG: High Performance Conjugate Gradient Benchmark
+    6.                 //
+    7.                 // Contact:
+    8.                 // Michael A. Heroux ( maherou@sandia.gov)
+    9.                 // Jack Dongarra     (dongarra@eecs.utk.edu)
+   10.                 // Piotr Luszczek    (luszczek@eecs.utk.edu)
+   11.                 //
+   12.                 // ***************************************************
+   13.                 //@HEADER
+   14.                 
+   15.                 /*!
+   16.                  @file YAML_Element.cpp
+   17.                 
+   18.                  HPCG routine
+   19.                  */
+   20.                 #define _GLIBCXX_USE_CXX11_ABI 0
+   21.                 #include <iostream>
+   22.                 #include <fstream>
+   23.                 #include <sstream>
+   24.                 #include "YAML_Element.hpp"
+   25.                 using namespace std;
+   26.  + Ip           YAML_Element::YAML_Element(const std::string & key_arg, const std::string & value_arg) {
+   27.  +                key = key_arg;
+   28.  +                value = value_arg;
+   29.                 }
+   30.                 
+   31.                 YAML_Element::~YAML_Element() {
+   32.  + 1 I--------<   for (size_t i=0; i<children.size(); i++) {
+   33.  + 1 I              delete children[i];
+   34.    1---------->   }
+   35.    I              children.clear();
+   36.  + Ip           }
+   37.                 
+   38.                 /*!
+   39.                   Add an element to the vector
+   40.                   QUESTION: if an element is not added because the key already exists,
+   41.                   will this lead to memory leakage?
+   42.                 
+   43.                   @param[in] key_arg   The key under which the element is stored
+   44.                   @param[in] value_arg The value of the element
+   45.                 
+   46.                   @return Returns the added element
+   47.                 */
+   48.                 YAML_Element * YAML_Element::add(const std::string & key_arg, double value_arg) {
+   49.  +                this->value = "";
+   50.    Ip             string converted_value = convert_double_to_string(value_arg);
+   51.  +                YAML_Element * element = new YAML_Element(key_arg,converted_value);
+   52.  +                children.push_back(element);
+   53.  +                return element;
+   54.                 }
+   55.                 
+   56.                 /*!
+   57.                   Add an element to the vector
+   58.                 
+   59.                   @param[in] key_arg   The key under which the element is stored
+   60.                   @param[in] value_arg The value of the element
+   61.                 
+   62.                   @return Returns the added element
+   63.                 */
+   64.                 YAML_Element * YAML_Element::add(const std::string & key_arg, int value_arg) {
+   65.  +                this->value = "";
+   66.    Ip             string converted_value = convert_int_to_string(value_arg);
+   67.  +                YAML_Element * element = new YAML_Element(key_arg,converted_value);
+   68.  +                children.push_back(element);
+   69.  +                return element;
+   70.                 }
+   71.                 
+   72.                 #ifndef HPCG_NO_LONG_LONG
+   73.                 
+   74.                 /*!
+   75.                   Add an element to the vector
+   76.                 
+   77.                   @param[in] key_arg   The key under which the element is stored
+   78.                   @param[in] value_arg The value of the element
+   79.                 
+   80.                   @return Returns the added element
+   81.                 */
+   82.                 YAML_Element * YAML_Element::add(const std::string & key_arg, long long value_arg) {
+   83.  +                this->value = "";
+   84.    Ip             string converted_value = convert_long_long_to_string(value_arg);
+   85.  +                YAML_Element * element = new YAML_Element(key_arg,converted_value);
+   86.  +                children.push_back(element);
+   87.  +                return element;
+   88.                 }
+   89.                 
+   90.                 #endif
+   91.                 
+   92.                 /*!
+   93.                   Add an element to the vector
+   94.                 
+   95.                   @param[in] key_arg   The key under which the element is stored
+   96.                   @param[in] value_arg The value of the element
+   97.                 
+   98.                   @return Returns the added element
+   99.                 */
+  100.                 YAML_Element * YAML_Element::add(const std::string & key_arg, size_t value_arg) {
+  101.  +                this->value = "";
+  102.    Ip             string converted_value = convert_size_t_to_string(value_arg);
+  103.  +                YAML_Element * element = new YAML_Element(key_arg,converted_value);
+  104.  +                children.push_back(element);
+  105.  +                return element;
+  106.                 }
+  107.                 
+  108.                 /*!
+  109.                   Add an element to the vector
+  110.                 
+  111.                   @param[in] key_arg   The key under which the element is stored
+  112.                   @param[in] value_arg The value of the element
+  113.                 
+  114.                   @return Returns the added element
+  115.                 */
+  116.                 YAML_Element * YAML_Element::add(const std::string & key_arg, const std::string & value_arg) {
+  117.  +                this->value = "";
+  118.  +                YAML_Element * element = new YAML_Element(key_arg, value_arg);
+  119.  +                children.push_back(element);
+  120.                   return element;
+  121.                 }
+  122.                 
+  123.                 /*!
+  124.                   Returns the pointer to the YAML_Element for the given key.
+  125.                   @param[in] key_arg   The key under which the element was stored
+  126.                 
+  127.                   @return If found, returns the element, otherwise returns NULL
+  128.                 */
+  129.                 YAML_Element * YAML_Element::get(const std::string & key_arg) {
+  130.  + 1 I--------<   for (size_t i=0; i<children.size(); i++) {
+  131.  + 1 Ip  I          if (children[i]->getKey() == key_arg) {
+  132.    1 I                return children[i];
+  133.    1                }
+  134.    1---------->   }
+  135.                   return 0;
+  136.                 }
+  137.                 
+  138.                 /*!
+  139.                   Prints a line of a YAML document.  Correct YAML depends on
+  140.                   correct spacing; the parameter space should be the proper
+  141.                   amount of space for the parent element
+  142.                 
+  143.                   @param[in] space spacing inserted at the beginning of the line
+  144.                 
+  145.                   @return Returns a single line of the YAML document without the leading white space
+  146.                 */
+  147.                 string YAML_Element::printYAML(std::string space) {
+  148.  + Ip             string yaml_line = space + key + ": " + value + "\n";
+  149.  + 1---------<>   for (int i=0; i<2; i++) space = space + " ";
+  150.  + 1 I--------<   for (size_t i=0; i<children.size(); i++) {
+  151.  + 1 Ip             yaml_line = yaml_line + children[i]->printYAML(space);
+  152.    1---------->   }
+  153.                   return yaml_line;
+  154.                 }
+  155.                 
+  156.                 /*!
+  157.                   Converts a double precision value to a string.
+  158.                 
+  159.                   @param[in] value_arg The value to be converted.
+  160.                 */
+  161.                 string YAML_Element::convert_double_to_string(double value_arg) {
+  162.  +                stringstream strm;
+  163.  +                strm << value_arg;
+  164.  +                return strm.str();
+  165.                 }
+  166.                 
+  167.                 /*!
+  168.                   Converts a integer value to a string.
+  169.                 
+  170.                   @param[in] value_arg The value to be converted.
+  171.                 */
+  172.                 string YAML_Element::convert_int_to_string(int value_arg) {
+  173.  +                stringstream strm;
+  174.  +                strm << value_arg;
+  175.  +                return strm.str();
+  176.                 }
+  177.                 
+  178.                 #ifndef HPCG_NO_LONG_LONG
+  179.                 
+  180.                 /*!
+  181.                   Converts a "long long" integer value to a string.
+  182.                 
+  183.                   @param[in] value_arg The value to be converted.
+  184.                 */
+  185.                 string YAML_Element::convert_long_long_to_string(long long value_arg) {
+  186.  +                stringstream strm;
+  187.  +                strm << value_arg;
+  188.  +                return strm.str();
+  189.                 }
+  190.                 
+  191.                 #endif
+  192.                 
+  193.                 /*!
+  194.                   Converts a "size_t" integer value to a string.
+  195.                 
+  196.                   @param[in] value_arg The value to be converted.
+  197.                 */
+  198.                 string YAML_Element::convert_size_t_to_string(size_t value_arg) {
+  199.  +                stringstream strm;
+  200.  +                strm << value_arg;
+  201.  +                return strm.str();
+  202.                 }
+
+CC-3001 CC: IPA <unnamed>, File = move.h, Line = 193, Column = 11 
+  Tiny leaf routine "_Vector_impl"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:95) was textually inlined.
+
+CC-3001 CC: IPA <unnamed>, File = move.h, Line = 193, Column = 11 
+  Tiny routine "vector"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:391) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected.
+
+CC-3021 CC: IPA __sti___dcabfc06_68d195d5, File = iostream, Line = 74, Column = 25 
+  "Init" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA YAML_Element, File = Geometry.hpp, Line = 114, Column = 7 
+  Tiny routine "~vector"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:565) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected.
+
+CC-3021 CC: IPA YAML_Element, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA YAML_Element, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA <unnamed>, File = Geometry.hpp, Line = 114, Column = 7 
+  Tiny routine "YAML_Element"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:26) was textually inlined.  NOT INLINED: 
+  basic_string : basic_string : __cxa_call_unexpected : operator= : operator= : ~basic_string : ~basic_string.
+
+CC-3039 CC: IPA <unnamed>, File = Geometry.hpp, Line = 114, Column = 7 
+  "~YAML_Element"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:31) was not inlined because there is a recursive call.
+
+CC-3019 CC: IPA add, File = Geometry.hpp, Line = 114, Column = 7 
+  "operator delete"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:183) was not inlined because the argument count is not
+  equal between call site and callee definition.
+
+CC-3021 CC: IPA add, File = Geometry.hpp, Line = 114, Column = 7 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA YAML_Element, File = YAML_Element.cpp, Line = 26, Column = 88 
+  "basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA YAML_Element, File = YAML_Element.cpp, Line = 26, Column = 88 
+  "basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA YAML_Element, File = YAML_Element.cpp, Line = 26, Column = 88 
+  Tiny routine "vector"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:391) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected.
+
+CC-3021 CC: IPA YAML_Element, File = YAML_Element.cpp, Line = 27, Column = 3 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA YAML_Element, File = YAML_Element.cpp, Line = 28, Column = 3 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-6287 CC: VECTOR ~YAML_Element, File = YAML_Element.cpp, Line = 32 
+  A loop was not vectorized because it contains a call to function "YAML_Element::~YAML_Element" on line 33.
+
+CC-3001 CC: IPA ~YAML_Element, File = YAML_Element.cpp, Line = 32, Column = 3 
+  Tiny leaf routine "size"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:805) was textually inlined.
+
+CC-3001 CC: IPA ~YAML_Element, File = YAML_Element.cpp, Line = 32, Column = 3 
+  Tiny leaf routine "size"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:805) was textually inlined.
+
+CC-3001 CC: IPA ~YAML_Element, File = YAML_Element.cpp, Line = 33, Column = 5 
+  Tiny leaf routine "operator[]"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:930) was textually inlined.
+
+CC-3039 CC: IPA ~YAML_Element, File = YAML_Element.cpp, Line = 33, Column = 5 
+  "~YAML_Element"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:31) was not inlined because there is a recursive call.
+
+CC-3001 CC: IPA ~YAML_Element, File = YAML_Element.cpp, Line = 33, Column = 5 
+  Tiny routine "operator delete"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:183) was textually inlined and flattened.
+
+CC-3001 CC: IPA ~YAML_Element, File = YAML_Element.cpp, Line = 35, Column = 3 
+  Tiny routine "clear"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:1385) was textually inlined and flattened.
+
+CC-3001 CC: IPA ~YAML_Element, File = YAML_Element.cpp, Line = 36, Column = 1 
+  Tiny routine "~vector"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:565) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected.
+
+CC-3021 CC: IPA ~YAML_Element, File = YAML_Element.cpp, Line = 36, Column = 1 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA ~YAML_Element, File = YAML_Element.cpp, Line = 36, Column = 1 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA add, File = YAML_Element.cpp, Line = 49, Column = 3 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA add, File = YAML_Element.cpp, Line = 50, Column = 10 
+  Tiny routine "convert_double_to_string"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:161) was textually inlined.  NOT
+  INLINED:  <unnamed> : operator<< : str.
+
+CC-3021 CC: IPA add, File = YAML_Element.cpp, Line = 51, Column = 18 
+  "operator new" was not inlined because the compiler was unable to locate the routine.
+
+CC-3165 CC: IPA add, File = YAML_Element.cpp, Line = 51, Column = 18 
+  "YAML_Element"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:26) was not inlined because of deferred implementation -
+  nested Call_Landing_Label_Opr.
+
+CC-3019 CC: IPA add, File = YAML_Element.cpp, Line = 51, Column = 18 
+  "operator delete"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:183) was not inlined because the argument count is not
+  equal between call site and callee definition.
+
+CC-3021 CC: IPA add, File = YAML_Element.cpp, Line = 51, Column = 18 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3118 CC: IPA add, File = YAML_Element.cpp, Line = 52, Column = 3 
+  "push_back"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:1074) was not inlined because the call site will not flatten. 
+  "_Znwm" is missing.
+
+CC-3021 CC: IPA add, File = YAML_Element.cpp, Line = 53, Column = 3 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA add, File = YAML_Element.cpp, Line = 65, Column = 3 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA add, File = YAML_Element.cpp, Line = 66, Column = 10 
+  Tiny routine "convert_int_to_string"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:172) was textually inlined.  NOT
+  INLINED:  <unnamed> : operator<< : str.
+
+CC-3021 CC: IPA add, File = YAML_Element.cpp, Line = 67, Column = 18 
+  "operator new" was not inlined because the compiler was unable to locate the routine.
+
+CC-3165 CC: IPA add, File = YAML_Element.cpp, Line = 67, Column = 18 
+  "YAML_Element"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:26) was not inlined because of deferred implementation -
+  nested Call_Landing_Label_Opr.
+
+CC-3019 CC: IPA add, File = YAML_Element.cpp, Line = 67, Column = 18 
+  "operator delete"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:183) was not inlined because the argument count is not
+  equal between call site and callee definition.
+
+CC-3021 CC: IPA add, File = YAML_Element.cpp, Line = 67, Column = 18 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3118 CC: IPA add, File = YAML_Element.cpp, Line = 68, Column = 3 
+  "push_back"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:1074) was not inlined because the call site will not flatten. 
+  "_Znwm" is missing.
+
+CC-3021 CC: IPA add, File = YAML_Element.cpp, Line = 69, Column = 3 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA add, File = YAML_Element.cpp, Line = 83, Column = 3 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA add, File = YAML_Element.cpp, Line = 84, Column = 10 
+  Tiny routine "convert_long_long_to_string"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:185) was textually inlined.  NOT
+  INLINED:  <unnamed> : operator<< : str.
+
+CC-3021 CC: IPA add, File = YAML_Element.cpp, Line = 85, Column = 18 
+  "operator new" was not inlined because the compiler was unable to locate the routine.
+
+CC-3165 CC: IPA add, File = YAML_Element.cpp, Line = 85, Column = 18 
+  "YAML_Element"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:26) was not inlined because of deferred implementation -
+  nested Call_Landing_Label_Opr.
+
+CC-3019 CC: IPA add, File = YAML_Element.cpp, Line = 85, Column = 18 
+  "operator delete"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:183) was not inlined because the argument count is not
+  equal between call site and callee definition.
+
+CC-3021 CC: IPA add, File = YAML_Element.cpp, Line = 85, Column = 18 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3118 CC: IPA add, File = YAML_Element.cpp, Line = 86, Column = 3 
+  "push_back"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:1074) was not inlined because the call site will not flatten. 
+  "_Znwm" is missing.
+
+CC-3021 CC: IPA add, File = YAML_Element.cpp, Line = 87, Column = 3 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA add, File = YAML_Element.cpp, Line = 101, Column = 3 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA add, File = YAML_Element.cpp, Line = 102, Column = 10 
+  Tiny routine "convert_size_t_to_string"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:198) was textually inlined.  NOT
+  INLINED:  <unnamed> : operator<< : str.
+
+CC-3021 CC: IPA add, File = YAML_Element.cpp, Line = 103, Column = 18 
+  "operator new" was not inlined because the compiler was unable to locate the routine.
+
+CC-3165 CC: IPA add, File = YAML_Element.cpp, Line = 103, Column = 18 
+  "YAML_Element"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:26) was not inlined because of deferred implementation -
+  nested Call_Landing_Label_Opr.
+
+CC-3019 CC: IPA add, File = YAML_Element.cpp, Line = 103, Column = 18 
+  "operator delete"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:183) was not inlined because the argument count is not
+  equal between call site and callee definition.
+
+CC-3118 CC: IPA add, File = YAML_Element.cpp, Line = 104, Column = 3 
+  "push_back"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:1074) was not inlined because the call site will not flatten. 
+  "_Znwm" is missing.
+
+CC-3021 CC: IPA add, File = YAML_Element.cpp, Line = 105, Column = 3 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA add, File = YAML_Element.cpp, Line = 117, Column = 3 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA add, File = YAML_Element.cpp, Line = 118, Column = 18 
+  "operator new" was not inlined because the compiler was unable to locate the routine.
+
+CC-3165 CC: IPA add, File = YAML_Element.cpp, Line = 118, Column = 18 
+  "YAML_Element"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:26) was not inlined because of deferred implementation -
+  nested Call_Landing_Label_Opr.
+
+CC-3021 CC: IPA get, File = YAML_Element.cpp, Line = 118, Column = 18 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA printYAML, File = YAML_Element.cpp, Line = 118, Column = 18 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA printYAML, File = YAML_Element.cpp, Line = 118, Column = 18 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA printYAML, File = YAML_Element.cpp, Line = 118, Column = 18 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA printYAML, File = YAML_Element.cpp, Line = 118, Column = 18 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA printYAML, File = YAML_Element.cpp, Line = 118, Column = 18 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA printYAML, File = YAML_Element.cpp, Line = 118, Column = 18 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA printYAML, File = YAML_Element.cpp, Line = 118, Column = 18 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA printYAML, File = YAML_Element.cpp, Line = 118, Column = 18 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3118 CC: IPA add, File = YAML_Element.cpp, Line = 119, Column = 3 
+  "push_back"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:1074) was not inlined because the call site will not flatten. 
+  "_Znwm" is missing.
+
+CC-6287 CC: VECTOR get, File = YAML_Element.cpp, Line = 130 
+  A loop was not vectorized because it contains a call to function "std::basic_string<char, std::char_traits<char>,
+  std::allocator<char>>::basic_string" on line 131.
+
+CC-3001 CC: IPA get, File = YAML_Element.cpp, Line = 130, Column = 3 
+  Tiny leaf routine "size"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:805) was textually inlined.
+
+CC-3001 CC: IPA get, File = YAML_Element.cpp, Line = 130, Column = 3 
+  Tiny leaf routine "size"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:805) was textually inlined.
+
+CC-3001 CC: IPA get, File = YAML_Element.cpp, Line = 131, Column = 5 
+  Tiny leaf routine "operator[]"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:930) was textually inlined.
+
+CC-3001 CC: IPA get, File = YAML_Element.cpp, Line = 131, Column = 5 
+  Tiny routine "getKey"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:49) was textually inlined.  NOT INLINED: 
+  basic_string.
+
+CC-3001 CC: IPA get, File = YAML_Element.cpp, Line = 131, Column = 5 
+  Tiny routine "operator==<char>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:6017) was textually inlined.  NOT INLINED: 
+  size : size : data : data : memcmp.
+
+CC-3021 CC: IPA get, File = YAML_Element.cpp, Line = 131, Column = 5 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA get, File = YAML_Element.cpp, Line = 132, Column = 7 
+  Tiny leaf routine "operator[]"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:930) was textually inlined.
+
+CC-3021 CC: IPA convert_double_to_string, File = YAML_Element.cpp, Line = 148, Column = 10 
+  "<unnamed>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA printYAML, File = YAML_Element.cpp, Line = 148, Column = 20 
+  Tiny routine "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:5888)
+  was textually inlined.  NOT INLINED:  basic_string : append : ~basic_string.
+
+CC-3001 CC: IPA printYAML, File = YAML_Element.cpp, Line = 148, Column = 20 
+  Tiny routine "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:5989)
+  was textually inlined.  NOT INLINED:  append : basic_string.
+
+CC-3001 CC: IPA printYAML, File = YAML_Element.cpp, Line = 148, Column = 20 
+  Tiny routine "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:5953)
+  was textually inlined.  NOT INLINED:  append : basic_string.
+
+CC-3001 CC: IPA printYAML, File = YAML_Element.cpp, Line = 148, Column = 20 
+  Tiny routine "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:5989)
+  was textually inlined.  NOT INLINED:  append : basic_string.
+
+CC-3021 CC: IPA printYAML, File = YAML_Element.cpp, Line = 148, Column = 20 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA printYAML, File = YAML_Element.cpp, Line = 148, Column = 20 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA printYAML, File = YAML_Element.cpp, Line = 148, Column = 20 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-6287 CC: VECTOR printYAML, File = YAML_Element.cpp, Line = 149 
+  A loop was not vectorized because it contains a call to function "std::basic_string<T1, T2, T3> std::operator +<char,
+  std::char_traits<char>, std::allocator<char>>" on line 149.
+
+CC-3165 CC: IPA printYAML, File = YAML_Element.cpp, Line = 149, Column = 27 
+  "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:5925) was not inlined
+  because of deferred implementation - nested Call_Landing_Label_Opr.
+
+CC-3021 CC: IPA printYAML, File = YAML_Element.cpp, Line = 149, Column = 27 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA printYAML, File = YAML_Element.cpp, Line = 149, Column = 27 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-6287 CC: VECTOR printYAML, File = YAML_Element.cpp, Line = 150 
+  A loop was not vectorized because it contains a call to function "std::basic_string<char, std::char_traits<char>,
+  std::allocator<char>>::basic_string" on line 151.
+
+CC-3001 CC: IPA printYAML, File = YAML_Element.cpp, Line = 150, Column = 3 
+  Tiny leaf routine "size"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:805) was textually inlined.
+
+CC-3001 CC: IPA printYAML, File = YAML_Element.cpp, Line = 150, Column = 3 
+  Tiny leaf routine "size"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:805) was textually inlined.
+
+CC-3001 CC: IPA printYAML, File = YAML_Element.cpp, Line = 151, Column = 5 
+  Tiny leaf routine "operator[]"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:930) was textually inlined.
+
+CC-3021 CC: IPA printYAML, File = YAML_Element.cpp, Line = 151, Column = 5 
+  "basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3039 CC: IPA printYAML, File = YAML_Element.cpp, Line = 151, Column = 5 
+  "printYAML"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:147) was not inlined because there is a recursive call.
+
+CC-3001 CC: IPA printYAML, File = YAML_Element.cpp, Line = 151, Column = 5 
+  Tiny routine "operator+<char, char_traits<char>, allocator<char>>"(/cray/css/users/smehta/hpcg-orig/src/YAML_Element.cpp:5959)
+  was textually inlined.  NOT INLINED:  insert : basic_string.
+
+CC-3021 CC: IPA printYAML, File = YAML_Element.cpp, Line = 151, Column = 5 
+  "operator=" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA printYAML, File = YAML_Element.cpp, Line = 151, Column = 5 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA printYAML, File = YAML_Element.cpp, Line = 151, Column = 5 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA printYAML, File = YAML_Element.cpp, Line = 151, Column = 5 
+  "~basic_string" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA convert_int_to_string, File = YAML_Element.cpp, Line = 162, Column = 16 
+  "<unnamed>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA convert_double_to_string, File = YAML_Element.cpp, Line = 162, Column = 16 
+  "<unnamed>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA convert_double_to_string, File = YAML_Element.cpp, Line = 163, Column = 3 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA convert_double_to_string, File = YAML_Element.cpp, Line = 164, Column = 3 
+  "str" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA convert_double_to_string, File = YAML_Element.cpp, Line = 164, Column = 3 
+  "<unnamed>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA convert_int_to_string, File = YAML_Element.cpp, Line = 173, Column = 16 
+  "<unnamed>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA convert_long_long_to_string, File = YAML_Element.cpp, Line = 173, Column = 16 
+  "<unnamed>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA convert_int_to_string, File = YAML_Element.cpp, Line = 174, Column = 3 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA convert_int_to_string, File = YAML_Element.cpp, Line = 175, Column = 3 
+  "str" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA convert_int_to_string, File = YAML_Element.cpp, Line = 175, Column = 3 
+  "<unnamed>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA convert_long_long_to_string, File = YAML_Element.cpp, Line = 186, Column = 16 
+  "<unnamed>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA convert_size_t_to_string, File = YAML_Element.cpp, Line = 186, Column = 16 
+  "<unnamed>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA convert_long_long_to_string, File = YAML_Element.cpp, Line = 187, Column = 3 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA convert_long_long_to_string, File = YAML_Element.cpp, Line = 188, Column = 3 
+  "str" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA convert_long_long_to_string, File = YAML_Element.cpp, Line = 188, Column = 3 
+  "<unnamed>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA convert_size_t_to_string, File = YAML_Element.cpp, Line = 199, Column = 16 
+  "<unnamed>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA convert_size_t_to_string, File = YAML_Element.cpp, Line = 200, Column = 3 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA convert_size_t_to_string, File = YAML_Element.cpp, Line = 201, Column = 3 
+  "str" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA convert_size_t_to_string, File = YAML_Element.cpp, Line = 201, Column = 3 
+  "<unnamed>" was not inlined because the compiler was unable to locate the routine.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

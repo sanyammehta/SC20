@@ -1,0 +1,183 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/ComputeWAXPBY_ref.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c -o src/ComputeWAXPBY_ref.o src/ComputeWAXPBY_ref.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/ComputeWAXPBY_ref.cpp
+Date     : 06/04/2020  19:33:19
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.                 
+    2.                 //@HEADER
+    3.                 // ***************************************************
+    4.                 //
+    5.                 // HPCG: High Performance Conjugate Gradient Benchmark
+    6.                 //
+    7.                 // Contact:
+    8.                 // Michael A. Heroux ( maherou@sandia.gov)
+    9.                 // Jack Dongarra     (dongarra@eecs.utk.edu)
+   10.                 // Piotr Luszczek    (luszczek@eecs.utk.edu)
+   11.                 //
+   12.                 // ***************************************************
+   13.                 //@HEADER
+   14.                 
+   15.                 /*!
+   16.                  @file ComputeWAXPBY_ref.cpp
+   17.                 
+   18.                  HPCG routine
+   19.                  */
+   20.                 
+   21.                 #include "ComputeWAXPBY_ref.hpp"
+   22.                 #ifndef HPCG_NO_OPENMP
+   23.                 #include <omp.h>
+   24.                 #endif
+   25.                 #include <cassert>
+   26.                 /*!
+   27.                   Routine to compute the update of a vector with the sum of two
+   28.                   scaled vectors where: w = alpha*x + beta*y
+   29.                 
+   30.                   This is the reference WAXPBY impmentation.  It CANNOT be modified for the
+   31.                   purposes of this benchmark.
+   32.                 
+   33.                   @param[in] n the number of vector elements (on this processor)
+   34.                   @param[in] alpha, beta the scalars applied to x and y respectively.
+   35.                   @param[in] x, y the input vectors
+   36.                   @param[out] w the output vector.
+   37.                 
+   38.                   @return returns 0 upon success and non-zero otherwise
+   39.                 
+   40.                   @see ComputeWAXPBY
+   41.                 */
+   42.                 int ComputeWAXPBY_ref(const local_int_t n, const double alpha, const Vector & x,
+   43.                     const double beta, const Vector & y, Vector & w) {
+   44.                 
+   45.                   assert(x.localLength>=n); // Test vector lengths
+   46.                   assert(y.localLength>=n);
+   47.                 
+   48.                   const double * const xv = x.values;
+   49.                   const double * const yv = y.values;
+   50.                   double * const wv = w.values;
+   51.                 
+   52.                   if (alpha==1.0) {
+   53.                 #ifndef HPCG_NO_OPENMP
+   54.                     #pragma omp parallel for
+   55.                 #endif
+   56.  + M-<mVpr4--<>     for (local_int_t i=0; i<n; i++) wv[i] = xv[i] + beta * yv[i];
+   57.    M              } else if (beta==1.0) {
+   58.    M            #ifndef HPCG_NO_OPENMP
+   59.    M                #pragma omp parallel for
+   60.    M            #endif
+   61.  + M  mVpr4--<>     for (local_int_t i=0; i<n; i++) wv[i] = alpha * xv[i] + yv[i];
+   62.    M              } else  {
+   63.    M            #ifndef HPCG_NO_OPENMP
+   64.    M                #pragma omp parallel for
+   65.    M            #endif
+   66.  + M->mVpr4--<>     for (local_int_t i=0; i<n; i++) wv[i] = alpha * xv[i] + beta * yv[i];
+   67.                   }
+   68.                 
+   69.                   return 0;
+   70.                 }
+
+CC-6005 CC: SCALAR ComputeWAXPBY_ref, File = ComputeWAXPBY_ref.cpp, Line = 56 
+  A loop was unrolled 4 times.
+
+CC-6831 CC: THREAD ComputeWAXPBY_ref, File = ComputeWAXPBY_ref.cpp, Line = 56 
+  An expanded multi-threaded region was created starting near line 56 and ending near line 66.
+
+CC-6824 CC: THREAD ComputeWAXPBY_ref, File = ComputeWAXPBY_ref.cpp, Line = 56 
+  A region starting at line 56 and ending at line 56 was multi-threaded and merged with an expanded multi-thread region.
+
+CC-6209 CC: VECTOR ComputeWAXPBY_ref, File = ComputeWAXPBY_ref.cpp, Line = 56 
+  A loop was partially vectorized.
+
+CC-6817 CC: THREAD ComputeWAXPBY_ref, File = ComputeWAXPBY_ref.cpp, Line = 56 
+  A loop was partitioned.
+
+CC-6005 CC: SCALAR ComputeWAXPBY_ref, File = ComputeWAXPBY_ref.cpp, Line = 61 
+  A loop was unrolled 4 times.
+
+CC-6824 CC: THREAD ComputeWAXPBY_ref, File = ComputeWAXPBY_ref.cpp, Line = 61 
+  A region starting at line 61 and ending at line 61 was multi-threaded and merged with an expanded multi-thread region.
+
+CC-6209 CC: VECTOR ComputeWAXPBY_ref, File = ComputeWAXPBY_ref.cpp, Line = 61 
+  A loop was partially vectorized.
+
+CC-6817 CC: THREAD ComputeWAXPBY_ref, File = ComputeWAXPBY_ref.cpp, Line = 61 
+  A loop was partitioned.
+
+CC-6005 CC: SCALAR ComputeWAXPBY_ref, File = ComputeWAXPBY_ref.cpp, Line = 66 
+  A loop was unrolled 4 times.
+
+CC-6824 CC: THREAD ComputeWAXPBY_ref, File = ComputeWAXPBY_ref.cpp, Line = 66 
+  A region starting at line 66 and ending at line 66 was multi-threaded and merged with an expanded multi-thread region.
+
+CC-6209 CC: VECTOR ComputeWAXPBY_ref, File = ComputeWAXPBY_ref.cpp, Line = 66 
+  A loop was partially vectorized.
+
+CC-6817 CC: THREAD ComputeWAXPBY_ref, File = ComputeWAXPBY_ref.cpp, Line = 66 
+  A loop was partitioned.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

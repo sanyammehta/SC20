@@ -1,0 +1,310 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/GenerateCoarseProblem.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c
+           -o src/GenerateCoarseProblem.o src/GenerateCoarseProblem.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/GenerateCoarseProblem.cpp
+Date     : 06/04/2020  19:33:20
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.                         
+    2.                         //@HEADER
+    3.                         // ***************************************************
+    4.                         //
+    5.                         // HPCG: High Performance Conjugate Gradient Benchmark
+    6.                         //
+    7.                         // Contact:
+    8.                         // Michael A. Heroux ( maherou@sandia.gov)
+    9.                         // Jack Dongarra     (dongarra@eecs.utk.edu)
+   10.                         // Piotr Luszczek    (luszczek@eecs.utk.edu)
+   11.                         //
+   12.                         // ***************************************************
+   13.                         //@HEADER
+   14.                         
+   15.                         /*!
+   16.                          @file GenerateProblem.cpp
+   17.                         
+   18.                          HPCG routine
+   19.                          */
+   20.                         
+   21.                         #ifndef HPCG_NO_OPENMP
+   22.                         #include <omp.h>
+   23.                         #endif
+   24.                         
+   25.                         #include <cassert>
+   26.                         #include "GenerateCoarseProblem.hpp"
+   27.                         #include "GenerateGeometry.hpp"
+   28.                         #include "GenerateProblem.hpp"
+   29.                         #include "SetupHalo.hpp"
+   30.                         
+   31.                         /*!
+   32.                           Routine to construct a prolongation/restriction operator for a given fine grid matrix
+   33.                           solution (as computed by a direct solver).
+   34.                         
+   35.                           @param[inout]  Af - The known system matrix, on output its coarse operator, fine-to-coarse operator and auxiliary vectors will be defined.
+   36.                         
+   37.                           Note that the matrix Af is considered const because the attributes we are modifying are declared as mutable.
+   38.                         
+   39.                         */
+   40.                         
+   41.                         void GenerateCoarseProblem(const SparseMatrix & Af) {
+   42.                         
+   43.                           // Make local copies of geometry information.  Use global_int_t since the RHS products in the calculations
+   44.                           // below may result in global range values.
+   45.                           global_int_t nxf = Af.geom->nx;
+   46.                           global_int_t nyf = Af.geom->ny;
+   47.                           global_int_t nzf = Af.geom->nz;
+   48.                         
+   49.                           local_int_t nxc, nyc, nzc; //Coarse nx, ny, nz
+   50.                           assert(nxf%2==0); assert(nyf%2==0); assert(nzf%2==0); // Need fine grid dimensions to be divisible by 2
+   51.                           nxc = nxf/2; nyc = nyf/2; nzc = nzf/2;
+   52.       Ip                  local_int_t * f2cOperator = new local_int_t[Af.localNumberOfRows];
+   53.                           local_int_t localNumberOfRows = nxc*nyc*nzc; // This is the size of our subblock
+   54.                           // If this assert fails, it most likely means that the local_int_t is set to int and should be set to long long
+   55.                           assert(localNumberOfRows>0); // Throw an exception of the number of rows is less than zero (can happen if "int" overflows)
+   56.                         
+   57.                           // Use a parallel loop to do initial assignment:
+   58.                           // distributes the physical placement of arrays of pointers across the memory system
+   59.                         #ifndef HPCG_NO_OPENMP
+   60.                           #pragma omp parallel for
+   61.                         #endif
+   62.  + M-<mVr4------------<   for (local_int_t i=0; i< localNumberOfRows; ++i) {
+   63.    M  mVr4                  f2cOperator[i] = 0;
+   64.    M  mVr4------------>   }
+   65.    M                    
+   66.    M                    
+   67.    M                      // TODO:  This triply nested loop could be flattened or use nested parallelism
+   68.    M                    #ifndef HPCG_NO_OPENMP
+   69.    M                      #pragma omp parallel for
+   70.    M                    #endif
+   71.  + M  m---------------<   for (local_int_t izc=0; izc<nzc; ++izc) {
+   72.    M  m                     local_int_t izf = 2*izc;
+   73.  + M  m 2-------------<     for (local_int_t iyc=0; iyc<nyc; ++iyc) {
+   74.    M  m 2                     local_int_t iyf = 2*iyc;
+   75.    M  m 2 Vr4---------<       for (local_int_t ixc=0; ixc<nxc; ++ixc) {
+   76.    M  m 2 Vr4                   local_int_t ixf = 2*ixc;
+   77.    M  m 2 Vr4                   local_int_t currentCoarseRow = izc*nxc*nyc+iyc*nxc+ixc;
+   78.    M  m 2 Vr4                   local_int_t currentFineRow = izf*nxf*nyf+iyf*nxf+ixf;
+   79.    M  m 2 Vr4                   f2cOperator[currentCoarseRow] = currentFineRow;
+   80.    M  m 2 Vr4--------->       } // end iy loop
+   81.    M  m 2------------->     } // end even iz if statement
+   82.    M->m--------------->   } // end iz loop
+   83.                         
+   84.                           // Construct the geometry and linear system
+   85.  +                        Geometry * geomc = new Geometry;
+   86.                           local_int_t zlc = 0; // Coarsen nz for the lower block in the z processor dimension
+   87.                           local_int_t zuc = 0; // Coarsen nz for the upper block in the z processor dimension
+   88.                           int pz = Af.geom->pz;
+   89.                           if (pz>0) {
+   90.                             zlc = Af.geom->partz_nz[0]/2; // Coarsen nz for the lower block in the z processor dimension
+   91.                             zuc = Af.geom->partz_nz[1]/2; // Coarsen nz for the upper block in the z processor dimension
+   92.                           }
+   93.  +                        GenerateGeometry(Af.geom->size, Af.geom->rank, Af.geom->numThreads, Af.geom->pz, zlc, zuc, nxc, nyc, nzc, Af.geom->npx, Af.geom->npy, Af.geom->npz, geomc);
+   94.                         
+   95.  +                        SparseMatrix * Ac = new SparseMatrix;
+   96.       I                   InitializeSparseMatrix(*Ac, geomc);
+   97.  +                        GenerateProblem(*Ac, 0, 0, 0);
+   98.  +                        SetupHalo(*Ac);
+   99.  +                        Vector *rc = new Vector;
+  100.  +                        Vector *xc = new Vector;
+  101.  +                        Vector * Axf = new Vector;
+  102.       Ip                  InitializeVector(*rc, Ac->localNumberOfRows);
+  103.       Ip                  InitializeVector(*xc, Ac->localNumberOfColumns);
+  104.       Ip                  InitializeVector(*Axf, Af.localNumberOfColumns);
+  105.                           Af.Ac = Ac;
+  106.  +                        MGData * mgData = new MGData;
+  107.       I                   InitializeMGData(f2cOperator, rc, xc, Axf, *mgData);
+  108.                           Af.mgData = mgData;
+  109.                         
+  110.                           return;
+  111.                         }
+
+CC-3001 CC: IPA <unnamed>, File = basic_string.h, Line = 6571, Column = 15 
+  Tiny leaf routine "_Hash_node_base"(/cray/css/users/smehta/hpcg-orig/src/GenerateCoarseProblem.cpp:219) was textually inlined.
+
+CC-3118 CC: IPA <unnamed>, File = hashtable_policy.h, Line = 2136, Column = 27 
+  "~_Hashtable"(/cray/css/users/smehta/hpcg-orig/src/GenerateCoarseProblem.cpp:1369) was not inlined because the call site will not
+  flatten.  "__cxa_call_unexpected" is missing.
+
+CC-3001 CC: IPA <unnamed>, File = hashtable_policy.h, Line = 2136, Column = 27 
+  Tiny routine "~_Vector_base"(/cray/css/users/smehta/hpcg-orig/src/GenerateCoarseProblem.cpp:283) was textually inlined and
+  flattened.
+
+CC-3001 CC: IPA <unnamed>, File = hashtable_policy.h, Line = 2136, Column = 27 
+  Tiny leaf routine "_Vector_impl"(/cray/css/users/smehta/hpcg-orig/src/GenerateCoarseProblem.cpp:95) was textually inlined.
+
+CC-3001 CC: IPA <unnamed>, File = hashtable_policy.h, Line = 2136, Column = 27 
+  Tiny routine "vector"(/cray/css/users/smehta/hpcg-orig/src/GenerateCoarseProblem.cpp:391) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected.
+
+CC-6263 CC: VECTOR ~_Hashtable, File = hashtable.h, Line = 1371 
+  A loop was not vectorized because it contains a reference to a non-vector intrinsic on line 1371.
+
+CC-3019 CC: IPA GenerateCoarseProblem, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  "operator delete"(/cray/css/users/smehta/hpcg-orig/src/GenerateCoarseProblem.cpp:134) was not inlined because the argument count
+  is not equal between call site and callee definition.
+
+CC-3118 CC: IPA <unnamed>, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  "SparseMatrix_STRUCT"(/cray/css/users/smehta/hpcg-orig/src/GenerateCoarseProblem.cpp:39) was not inlined because the call site
+  will not flatten.  "__cxa_call_unexpected" is missing.
+
+CC-3001 CC: IPA <unnamed>, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny routine "_Hashtable"(/cray/css/users/smehta/hpcg-orig/src/GenerateCoarseProblem.cpp:413) was textually inlined.  NOT
+  INLINED:  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-3001 CC: IPA <unnamed>, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny routine "unordered_map"(/cray/css/users/smehta/hpcg-orig/src/GenerateCoarseProblem.cpp:141) was textually inlined.  NOT
+  INLINED:  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-3001 CC: IPA GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 52, Column = 29 
+  Tiny routine "operator new[]"(/cray/css/users/smehta/hpcg-orig/src/GenerateCoarseProblem.cpp:136) was textually inlined.  NOT
+  INLINED:  operator new.
+
+CC-6005 CC: SCALAR GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 62 
+  A loop was unrolled 4 times.
+
+CC-6831 CC: THREAD GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 62 
+  An expanded multi-threaded region was created starting near line 62 and ending near line 82.
+
+CC-6824 CC: THREAD GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 62 
+  A region starting at line 62 and ending at line 64 was multi-threaded and merged with an expanded multi-thread region.
+
+CC-6204 CC: VECTOR GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 62 
+  A loop was vectorized.
+
+CC-6817 CC: THREAD GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 62 
+  A loop was partitioned.
+
+CC-6294 CC: VECTOR GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 71 
+  A loop was not vectorized because a better candidate was found at line 75.
+
+CC-6824 CC: THREAD GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 71 
+  A region starting at line 71 and ending at line 82 was multi-threaded and merged with an expanded multi-thread region.
+
+CC-6817 CC: THREAD GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 71 
+  A loop was partitioned.
+
+CC-6294 CC: VECTOR GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 73 
+  A loop was not vectorized because a better candidate was found at line 75.
+
+CC-6005 CC: SCALAR GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 75 
+  A loop was unrolled 4 times.
+
+CC-6204 CC: VECTOR GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 75 
+  A loop was vectorized.
+
+CC-3021 CC: IPA GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 85, Column = 20 
+  "operator new" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 93, Column = 3 
+  "GenerateGeometry" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 95, Column = 18 
+  "operator new" was not inlined because the compiler was unable to locate the routine.
+
+CC-3118 CC: IPA GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 95, Column = 18 
+  "SparseMatrix_STRUCT"(/cray/css/users/smehta/hpcg-orig/src/GenerateCoarseProblem.cpp:39) was not inlined because the call site
+  will not flatten.  "__cxa_call_unexpected" is missing.
+
+CC-3001 CC: IPA GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 96, Column = 3 
+  Tiny leaf routine "InitializeSparseMatrix"(/cray/css/users/smehta/hpcg-orig/src/GenerateCoarseProblem.cpp:84) was textually
+  inlined.
+
+CC-3021 CC: IPA GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 97, Column = 3 
+  "GenerateProblem" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 98, Column = 3 
+  "SetupHalo" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 99, Column = 14 
+  "operator new" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 100, Column = 14 
+  "operator new" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 101, Column = 16 
+  "operator new" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 102, Column = 3 
+  Tiny routine "InitializeVector"(/cray/css/users/smehta/hpcg-orig/src/GenerateCoarseProblem.cpp:45) was textually inlined.  NOT
+  INLINED:  __cxa_throw_bad_array_new_length : operator new.
+
+CC-3001 CC: IPA GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 103, Column = 3 
+  Tiny routine "InitializeVector"(/cray/css/users/smehta/hpcg-orig/src/GenerateCoarseProblem.cpp:45) was textually inlined.  NOT
+  INLINED:  __cxa_throw_bad_array_new_length : operator new.
+
+CC-3001 CC: IPA GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 104, Column = 3 
+  Tiny routine "InitializeVector"(/cray/css/users/smehta/hpcg-orig/src/GenerateCoarseProblem.cpp:45) was textually inlined.  NOT
+  INLINED:  __cxa_throw_bad_array_new_length : operator new.
+
+CC-3021 CC: IPA GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 106, Column = 19 
+  "operator new" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA GenerateCoarseProblem, File = GenerateCoarseProblem.cpp, Line = 107, Column = 3 
+  Tiny leaf routine "InitializeMGData"(/cray/css/users/smehta/hpcg-orig/src/GenerateCoarseProblem.cpp:50) was textually inlined.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

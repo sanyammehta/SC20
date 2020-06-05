@@ -1,0 +1,141 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/ComputeRestriction_ref.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c
+           -o src/ComputeRestriction_ref.o src/ComputeRestriction_ref.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/ComputeRestriction_ref.cpp
+Date     : 06/04/2020  19:33:19
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.             
+    2.             //@HEADER
+    3.             // ***************************************************
+    4.             //
+    5.             // HPCG: High Performance Conjugate Gradient Benchmark
+    6.             //
+    7.             // Contact:
+    8.             // Michael A. Heroux ( maherou@sandia.gov)
+    9.             // Jack Dongarra     (dongarra@eecs.utk.edu)
+   10.             // Piotr Luszczek    (luszczek@eecs.utk.edu)
+   11.             //
+   12.             // ***************************************************
+   13.             //@HEADER
+   14.             
+   15.             /*!
+   16.              @file ComputeRestriction_ref.cpp
+   17.             
+   18.              HPCG routine
+   19.              */
+   20.             
+   21.             
+   22.             #ifndef HPCG_NO_OPENMP
+   23.             #include <omp.h>
+   24.             #endif
+   25.             
+   26.             #include "ComputeRestriction_ref.hpp"
+   27.             
+   28.             /*!
+   29.               Routine to compute the coarse residual vector.
+   30.             
+   31.               @param[inout]  A - Sparse matrix object containing pointers to mgData->Axf, the fine grid matrix-vector product and mgData->rc the coarse residual vector.
+   32.               @param[in]    rf - Fine grid RHS.
+   33.             
+   34.             
+   35.               Note that the fine grid residual is never explicitly constructed.
+   36.               We only compute it for the fine grid points that will be injected into corresponding coarse grid points.
+   37.             
+   38.               @return Returns zero on success and a non-zero value otherwise.
+   39.             */
+   40.             int ComputeRestriction_ref(const SparseMatrix & A, const Vector & rf) {
+   41.             
+   42.               double * Axfv = A.mgData->Axf->values;
+   43.               double * rfv = rf.values;
+   44.               double * rcv = A.mgData->rc->values;
+   45.               local_int_t * f2c = A.mgData->f2cOperator;
+   46.               local_int_t nc = A.mgData->rc->localLength;
+   47.             
+   48.             #ifndef HPCG_NO_OPENMP
+   49.             #pragma omp parallel for
+   50.             #endif
+   51.  + Mmr4--<>   for (local_int_t i=0; i<nc; ++i) rcv[i] = rfv[f2c[i]] - Axfv[f2c[i]];
+   52.             
+   53.               return 0;
+   54.             }
+
+CC-6005 CC: SCALAR ComputeRestriction_ref, File = ComputeRestriction_ref.cpp, Line = 51 
+  A loop was unrolled 4 times.
+
+CC-6823 CC: THREAD ComputeRestriction_ref, File = ComputeRestriction_ref.cpp, Line = 51 
+  A region starting at line 51 and ending at line 51 was multi-threaded.
+
+CC-6817 CC: THREAD ComputeRestriction_ref, File = ComputeRestriction_ref.cpp, Line = 51 
+  A loop was partitioned.
+
+CC-6290 CC: VECTOR ComputeRestriction_ref, File = ComputeRestriction_ref.cpp, Line = 51 
+  A loop was not vectorized because a recurrence was found between "Axfv" and "rcv" at line 51.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

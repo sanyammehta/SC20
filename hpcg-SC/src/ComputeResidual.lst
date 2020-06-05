@@ -1,0 +1,178 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/ComputeResidual.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c -o src/ComputeResidual.o src/ComputeResidual.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/ComputeResidual.cpp
+Date     : 06/04/2020  19:33:19
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.              
+    2.              //@HEADER
+    3.              // ***************************************************
+    4.              //
+    5.              // HPCG: High Performance Conjugate Gradient Benchmark
+    6.              //
+    7.              // Contact:
+    8.              // Michael A. Heroux ( maherou@sandia.gov)
+    9.              // Jack Dongarra     (dongarra@eecs.utk.edu)
+   10.              // Piotr Luszczek    (luszczek@eecs.utk.edu)
+   11.              //
+   12.              // ***************************************************
+   13.              //@HEADER
+   14.              
+   15.              /*!
+   16.               @file ComputeResidual.cpp
+   17.              
+   18.               HPCG routine
+   19.               */
+   20.              #ifndef HPCG_NO_MPI
+   21.              #include <mpi.h>
+   22.              #endif
+   23.              #ifndef HPCG_NO_OPENMP
+   24.              #include <omp.h>
+   25.              #endif
+   26.              
+   27.              #include "Vector.hpp"
+   28.              
+   29.              #ifdef HPCG_DETAILED_DEBUG
+   30.              #include <fstream>
+   31.              #include "hpcg.hpp"
+   32.              #endif
+   33.              
+   34.              #include <cmath>  // needed for fabs
+   35.              #include "ComputeResidual.hpp"
+   36.              #ifdef HPCG_DETAILED_DEBUG
+   37.              #include <iostream>
+   38.              #endif
+   39.              
+   40.              /*!
+   41.                Routine to compute the inf-norm difference between two vectors where:
+   42.              
+   43.                @param[in]  n        number of vector elements (local to this processor)
+   44.                @param[in]  v1, v2   input vectors
+   45.                @param[out] residual pointer to scalar value; on exit, will contain result: inf-norm difference
+   46.              
+   47.                @return Returns zero on success and a non-zero value otherwise.
+   48.              */
+   49.              int ComputeResidual(const local_int_t n, const Vector & v1, const Vector & v2, double & residual) {
+   50.              
+   51.                double * v1v = v1.values;
+   52.                double * v2v = v2.values;
+   53.                double local_residual = 0.0;
+   54.              
+   55.              #ifndef HPCG_NO_OPENMP
+   56.                #pragma omp parallel default(none) shared(local_residual, v1v, v2v)
+   57.    M-------<   {
+   58.    M             double threadlocal_residual = 0.0;
+   59.    M             #pragma omp for
+   60.    M mVr6--<     for (local_int_t i=0; i<n; i++) {
+   61.    M mVr6          double diff = std::fabs(v1v[i] - v2v[i]);
+   62.    M mVr6          if (diff > threadlocal_residual) threadlocal_residual = diff;
+   63.    M mVr6-->     }
+   64.    M             #pragma omp critical
+   65.    M             {
+   66.    M               if (threadlocal_residual>local_residual) local_residual = threadlocal_residual;
+   67.    M             }
+   68.    M------->   }
+   69.              #else // No threading
+   70.                for (local_int_t i=0; i<n; i++) {
+   71.                  double diff = std::fabs(v1v[i] - v2v[i]);
+   72.                  if (diff > local_residual) local_residual = diff;
+   73.              #ifdef HPCG_DETAILED_DEBUG
+   74.                  HPCG_fout << " Computed, exact, diff = " << v1v[i] << " " << v2v[i] << " " << diff << std::endl;
+   75.              #endif
+   76.                }
+   77.              #endif
+   78.              
+   79.              #ifndef HPCG_NO_MPI
+   80.                // Use MPI's reduce function to collect all partial sums
+   81.                double global_residual = 0;
+   82.  +             MPI_Allreduce(&local_residual, &global_residual, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+   83.                residual = global_residual;
+   84.              #else
+   85.                residual = local_residual;
+   86.              #endif
+   87.              
+   88.                return 0;
+   89.              }
+
+CC-6823 CC: THREAD ComputeResidual, File = ComputeResidual.cpp, Line = 57 
+  A region starting at line 57 and ending at line 68 was multi-threaded.
+
+CC-6005 CC: SCALAR ComputeResidual, File = ComputeResidual.cpp, Line = 60 
+  A loop was unrolled 6 times.
+
+CC-6204 CC: VECTOR ComputeResidual, File = ComputeResidual.cpp, Line = 60 
+  A loop was vectorized.
+
+CC-6817 CC: THREAD ComputeResidual, File = ComputeResidual.cpp, Line = 60 
+  A loop was partitioned.
+
+CC-3021 CC: IPA ComputeResidual, File = ComputeResidual.cpp, Line = 82, Column = 3 
+  "MPI_Allreduce" was not inlined because the compiler was unable to locate the routine.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

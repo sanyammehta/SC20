@@ -1,0 +1,990 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/main.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c -o src/main.o src/main.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/main.cpp
+Date     : 06/04/2020  19:33:21
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.                     
+    2.                     //@HEADER
+    3.                     // ***************************************************
+    4.                     //
+    5.                     // HPCG: High Performance Conjugate Gradient Benchmark
+    6.                     //
+    7.                     // Contact:
+    8.                     // Michael A. Heroux ( maherou@sandia.gov)
+    9.                     // Jack Dongarra     (dongarra@eecs.utk.edu)
+   10.                     // Piotr Luszczek    (luszczek@eecs.utk.edu)
+   11.                     //
+   12.                     // ***************************************************
+   13.                     //@HEADER
+   14.                     
+   15.                     /*!
+   16.                      @file main.cpp
+   17.                     
+   18.                      HPCG routine
+   19.                      */
+   20.                     
+   21.                     // Main routine of a program that calls the HPCG conjugate gradient
+   22.                     // solver to solve the problem, and then prints results.
+   23.                     
+   24.                     #ifndef HPCG_NO_MPI
+   25.                     #include <mpi.h>
+   26.                     #endif
+   27.                     
+   28.                     #include <fstream>
+   29.                     #include <iostream>
+   30.                     #include <cstdlib>
+   31.                     #ifdef HPCG_DETAILED_DEBUG
+   32.                     using std::cin;
+   33.                     #endif
+   34.                     using std::endl;
+   35.                     
+   36.                     #include <vector>
+   37.                     
+   38.                     #include "hpcg.hpp"
+   39.                     
+   40.                     #include "CheckAspectRatio.hpp"
+   41.                     #include "GenerateGeometry.hpp"
+   42.                     #include "GenerateProblem.hpp"
+   43.                     #include "GenerateCoarseProblem.hpp"
+   44.                     #include "SetupHalo.hpp"
+   45.                     #include "CheckProblem.hpp"
+   46.                     #include "ExchangeHalo.hpp"
+   47.                     #include "OptimizeProblem.hpp"
+   48.                     #include "WriteProblem.hpp"
+   49.                     #include "ReportResults.hpp"
+   50.                     #include "mytimer.hpp"
+   51.                     #include "ComputeSPMV_ref.hpp"
+   52.                     #include "ComputeMG_ref.hpp"
+   53.                     #include "ComputeResidual.hpp"
+   54.                     #include "CG.hpp"
+   55.                     #include "CG_ref.hpp"
+   56.                     #include "Geometry.hpp"
+   57.                     #include "SparseMatrix.hpp"
+   58.                     #include "Vector.hpp"
+   59.                     #include "CGData.hpp"
+   60.                     #include "TestCG.hpp"
+   61.                     #include "TestSymmetry.hpp"
+   62.                     #include "TestNorms.hpp"
+   63.                     
+   64.                     //#include "pat_api.h"
+   65.                     
+   66.                     /*!
+   67.                       Main driver program: Construct synthetic problem, run V&V tests, compute benchmark parameters, run benchmark, report results.
+   68.                     
+   69.                       @param[in]  argc Standard argument count.  Should equal 1 (no arguments passed in) or 4 (nx, ny, nz passed in)
+   70.                       @param[in]  argv Standard argument array.  If argc==1, argv is unused.  If argc==4, argv[1], argv[2], argv[3] will be interpreted as nx, ny, nz, resp.
+   71.                     
+   72.                       @return Returns zero on success and a non-zero value otherwise.
+   73.                     
+   74.                     */
+   75.                     
+   76.                     void start_modeling(){
+   77.                     #pragma _CRI inline_never start_modeling
+   78.                     }
+   79.                     void stop_modeling(){
+   80.                     #pragma _CRI inline_never stop_modeling
+   81.                     }
+   82.                     
+   83.                     int main(int argc, char * argv[]) {
+   84.                     
+   85.                     #ifndef HPCG_NO_MPI
+   86.  +                    MPI_Init(&argc, &argv);
+   87.                     #endif
+   88.                     
+   89.                       HPCG_Params params;
+   90.                     
+   91.  +                    HPCG_Init(&argc, &argv, params);
+   92.                     
+   93.                     //PAT_record(PAT_STATE_OFF);
+   94.                     
+   95.                       // Check if QuickPath option is enabled.
+   96.                       // If the running time is set to zero, we minimize all paths through the program
+   97.                       bool quickPath = (params.runningTime==0);
+   98.                     
+   99.                       int size = params.comm_size, rank = params.comm_rank; // Number of MPI processes, My process ID
+  100.                     
+  101.                     #ifdef HPCG_DETAILED_DEBUG
+  102.                       if (size < 100 && rank==0) HPCG_fout << "Process "<<rank<<" of "<<size<<" is alive with " << params.numThreads << " threads." <<endl;
+  103.                     
+  104.                       if (rank==0) {
+  105.                         char c;
+  106.                         std::cout << "Press key to continue"<< std::endl;
+  107.                         std::cin.get(c);
+  108.                       }
+  109.                     #ifndef HPCG_NO_MPI
+  110.                       MPI_Barrier(MPI_COMM_WORLD);
+  111.                     #endif
+  112.                     #endif
+  113.                     
+  114.                       local_int_t nx,ny,nz;
+  115.                       nx = (local_int_t)params.nx;
+  116.                       ny = (local_int_t)params.ny;
+  117.                       nz = (local_int_t)params.nz;
+  118.                       int ierr = 0;  // Used to check return codes on function calls
+  119.                     
+  120.  +                    ierr = CheckAspectRatio(0.125, nx, ny, nz, "local problem", rank==0);
+  121.                       if (ierr)
+  122.                         return ierr;
+  123.                     
+  124.                       /////////////////////////
+  125.                       // Problem setup Phase //
+  126.                       /////////////////////////
+  127.                     
+  128.                     #ifdef HPCG_DEBUG
+  129.                       double t1 = mytimer();
+  130.                     #endif
+  131.                     
+  132.                       // Construct the geometry and linear system
+  133.  +                    Geometry * geom = new Geometry;
+  134.  +                    GenerateGeometry(size, rank, params.numThreads, params.pz, params.zl, params.zu, nx, ny, nz, params.npx, params.npy, params.npz, geom);
+  135.                     
+  136.  +                    ierr = CheckAspectRatio(0.125, geom->npx, geom->npy, geom->npz, "process grid", rank==0);
+  137.                       if (ierr)
+  138.                         return ierr;
+  139.                     
+  140.                       // Use this array for collecting timing information
+  141.  + Ip  I              std::vector< double > times(10,0.0);
+  142.                     
+  143.  +                    double setup_time = mytimer();
+  144.                     
+  145.  +                    SparseMatrix A;
+  146.    I                  InitializeSparseMatrix(A, geom);
+  147.                     
+  148.                       Vector b, x, xexact;
+  149.  +                    GenerateProblem(A, &b, &x, &xexact);
+  150.  +                    SetupHalo(A);
+  151.                       int numberOfMgLevels = 4; // Number of levels including first
+  152.                       SparseMatrix * curLevelMatrix = &A;
+  153.  + 1--------------<   for (int level = 1; level< numberOfMgLevels; ++level) {
+  154.  + 1                    GenerateCoarseProblem(*curLevelMatrix);
+  155.    1                    curLevelMatrix = curLevelMatrix->Ac; // Make the just-constructed coarse grid the next level
+  156.    1-------------->   }
+  157.                     
+  158.  +                    setup_time = mytimer() - setup_time; // Capture total time of setup
+  159.    I                  times[9] = setup_time; // Save it for reporting
+  160.                     
+  161.                       curLevelMatrix = &A;
+  162.                       Vector * curb = &b;
+  163.                       Vector * curx = &x;
+  164.                       Vector * curxexact = &xexact;
+  165.  + 1--------------<   for (int level = 0; level< numberOfMgLevels; ++level) {
+  166.  + 1                     CheckProblem(*curLevelMatrix, curb, curx, curxexact);
+  167.    1                     curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
+  168.    1                     curb = 0; // No vectors after the top level
+  169.    1                     curx = 0;
+  170.    1                     curxexact = 0;
+  171.    1-------------->   }
+  172.                     
+  173.                     
+  174.                       CGData data;
+  175.    Ip                 InitializeSparseCGData(A, data);
+  176.                     
+  177.                     
+  178.                     
+  179.                       ////////////////////////////////////
+  180.                       // Reference SpMV+MG Timing Phase //
+  181.                       ////////////////////////////////////
+  182.                     
+  183.                       // Call Reference SpMV and MG. Compute Optimization time as ratio of times in these routines
+  184.                     
+  185.                       local_int_t nrow = A.localNumberOfRows;
+  186.                       local_int_t ncol = A.localNumberOfColumns;
+  187.                     
+  188.                       Vector x_overlap, b_computed;
+  189.    Ip                 InitializeVector(x_overlap, ncol); // Overlapped copy of x vector
+  190.    Ip                 InitializeVector(b_computed, nrow); // Computed RHS vector
+  191.                     
+  192.                     
+  193.                       // Record execution time of reference SpMV and MG kernels for reporting times
+  194.                       // First load vector with random values
+  195.  + Ip                 FillRandomVector(x_overlap);
+  196.                     
+  197.                       int numberOfCalls = 10;
+  198.                       if (quickPath) numberOfCalls = 1; //QuickPath means we do on one call of each block of repetitive code
+  199.  +                    double t_begin = mytimer();
+  200.  + 1--------------<   for (int i=0; i< numberOfCalls; ++i) {
+  201.  + 1                    ierr = ComputeSPMV_ref(A, x_overlap, b_computed); // b_computed = A*x_overlap
+  202.  + 1                    if (ierr) HPCG_fout << "Error in call to SpMV: " << ierr << ".\n" << endl;
+  203.  + 1                    ierr = ComputeMG_ref(A, b_computed, x_overlap); // b_computed = Minv*y_overlap
+  204.  + 1                    if (ierr) HPCG_fout << "Error in call to MG: " << ierr << ".\n" << endl;
+  205.    1-------------->   }
+  206.  + I                  times[8] = (mytimer() - t_begin)/((double) numberOfCalls);  // Total time divided by number of calls.
+  207.                     #ifdef HPCG_DEBUG
+  208.                       if (rank==0) HPCG_fout << "Total SpMV+MG timing phase execution time in main (sec) = " << mytimer() - t1 << endl;
+  209.                     #endif
+  210.                     
+  211.                       ///////////////////////////////
+  212.                       // Reference CG Timing Phase //
+  213.                       ///////////////////////////////
+  214.                     
+  215.                     #ifdef HPCG_DEBUG
+  216.                       t1 = mytimer();
+  217.                     #endif
+  218.                       int global_failure = 0; // assume all is well: no failures
+  219.                     
+  220.                       int niters = 0;
+  221.                       int totalNiters_ref = 0;
+  222.                       double normr = 0.0;
+  223.                       double normr0 = 0.0;
+  224.                       int refMaxIters = 1;
+  225.                       numberOfCalls = 1; // Only need to run the residual reduction analysis once
+  226.                     
+  227.                       // Compute the residual reduction for the natural ordering and reference kernels
+  228.  + Ip  I              std::vector< double > ref_times(9,0.0);
+  229.                       double tolerance = 0.0; // Set tolerance to zero to make all runs do maxIters iterations
+  230.                       int err_count = 0;
+  231.    w--------------<   for (int i=0; i< numberOfCalls; ++i) {
+  232.    w Vr4 I-------<>     ZeroVector(x);
+  233.  + w I                  ierr = CG_ref( A, data, b, x, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
+  234.    w                    if (ierr) ++err_count; // count the number of errors in CG
+  235.    w                    totalNiters_ref += niters;
+  236.    w-------------->   }
+  237.  +                    if (rank == 0 && err_count) HPCG_fout << err_count << " error(s) in call(s) to reference CG." << endl;
+  238.                       double refTolerance = normr / normr0;
+  239.                     
+  240.                       // Call user-tunable set up function.
+  241.  +                    double t7 = mytimer();
+  242.  +                    OptimizeProblem(A, data, b, x, xexact);
+  243.  +                    t7 = mytimer() - t7;
+  244.    I                  times[7] = t7;
+  245.                     #ifdef HPCG_DEBUG
+  246.                       if (rank==0) HPCG_fout << "Total problem setup time in main (sec) = " << mytimer() - t1 << endl;
+  247.                     #endif
+  248.                     
+  249.                     #ifdef HPCG_DETAILED_DEBUG
+  250.                       if (geom->size == 1) WriteProblem(*geom, A, b, x, xexact);
+  251.                     #endif
+  252.                     
+  253.                     
+  254.                       //////////////////////////////
+  255.                       // Validation Testing Phase //
+  256.                       //////////////////////////////
+  257.                     
+  258.                     #ifdef HPCG_DEBUG
+  259.                       t1 = mytimer();
+  260.                     #endif
+  261.                       TestCGData testcg_data;
+  262.                       testcg_data.count_pass = testcg_data.count_fail = 0;
+  263.  +                    TestCG(A, data, b, x, testcg_data);
+  264.                     
+  265.                       TestSymmetryData testsymmetry_data;
+  266.  +                    TestSymmetry(A, b, xexact, testsymmetry_data);
+  267.                     
+  268.                     #ifdef HPCG_DEBUG
+  269.                       if (rank==0) HPCG_fout << "Total validation (TestCG and TestSymmetry) execution time in main (sec) = " << mytimer() - t1 << endl;
+  270.                     #endif
+  271.                     
+  272.                     #ifdef HPCG_DEBUG
+  273.                       t1 = mytimer();
+  274.                     #endif
+  275.                     
+  276.                       //////////////////////////////
+  277.                       // Optimized CG Setup Phase //
+  278.                       //////////////////////////////
+  279.                     
+  280.                       niters = 0;
+  281.                       normr = 0.0;
+  282.                       normr0 = 0.0;
+  283.                       err_count = 0;
+  284.                       int tolerance_failures = 0;
+  285.                     
+  286.                       int optMaxIters = 10*refMaxIters;
+  287.                       int optNiters = refMaxIters;
+  288.                       double opt_worst_time = 0.0;
+  289.                     
+  290.  + Ip  I              std::vector< double > opt_times(9,0.0);
+  291.                     
+  292.                       // Compute the residual reduction and residual count for the user ordering and optimized kernels.
+  293.    w--------------<   for (int i=0; i< numberOfCalls; ++i) {
+  294.    w Vr4 I-------<>     ZeroVector(x); // start x at all zeros
+  295.    w I                  double last_cummulative_time = opt_times[0];
+  296.  + w I                  ierr = CG( A, data, b, x, optMaxIters, refTolerance, niters, normr, normr0, &opt_times[0], true);
+  297.    w                    if (ierr) ++err_count; // count the number of errors in CG
+  298.    w                    if (normr / normr0 > refTolerance) ++tolerance_failures; // the number of failures to reduce residual
+  299.    w                
+  300.    w                    // pick the largest number of iterations to guarantee convergence
+  301.    w                    if (niters > optNiters) optNiters = niters;
+  302.    w                
+  303.    w I                  double current_time = opt_times[0] - last_cummulative_time;
+  304.    w                    if (current_time > opt_worst_time) opt_worst_time = current_time;
+  305.    w-------------->   }
+  306.                     
+  307.                     #ifndef HPCG_NO_MPI
+  308.                     // Get the absolute worst time across all MPI ranks (time in CG can be different)
+  309.                       double local_opt_worst_time = opt_worst_time;
+  310.  +                    MPI_Allreduce(&local_opt_worst_time, &opt_worst_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  311.                     #endif
+  312.                     
+  313.                     
+  314.  +                    if (rank == 0 && err_count) HPCG_fout << err_count << " error(s) in call(s) to optimized CG." << endl;
+  315.                       if (tolerance_failures) {
+  316.                         global_failure = 1;
+  317.                         if (rank == 0)
+  318.  +                        HPCG_fout << "Failed to reduce the residual " << tolerance_failures << " times." << endl;
+  319.                       }
+  320.                     
+  321.                       ///////////////////////////////
+  322.                       // Optimized CG Timing Phase //
+  323.                       ///////////////////////////////
+  324.                     
+  325.                       // Here we finally run the benchmark phase
+  326.                       // The variable total_runtime is the target benchmark execution time in seconds
+  327.                     
+  328.                       double total_runtime = params.runningTime;
+  329.                       int numberOfCgSets = /*int(total_runtime / opt_worst_time) +*/ 1; // Run at least once, account for rounding
+  330.                     
+  331.                     #ifdef HPCG_DEBUG
+  332.                       if (rank==0) {
+  333.                         HPCG_fout << "Projected running time: " << total_runtime << " seconds" << endl;
+  334.                         HPCG_fout << "Number of CG sets: " << numberOfCgSets << endl;
+  335.                       }
+  336.                     #endif
+  337.                     
+  338.                       /* This is the timed run for a specified amount of time. */
+  339.                     
+  340.                       optMaxIters = optNiters;
+  341.                       double optTolerance = 0.0;  // Force optMaxIters iterations
+  342.                       TestNormsData testnorms_data;
+  343.                       testnorms_data.samples = numberOfCgSets;
+  344.    Ip                 testnorms_data.values = new double[numberOfCgSets];
+  345.                     
+  346.                     //PAT_record(PAT_STATE_ON);
+  347.  +                  start_modeling();
+  348.                     
+  349.    w--------------<   for (int i=0; i< numberOfCgSets; ++i) {
+  350.    w Vr4 I-------<>     ZeroVector(x); // Zero out x
+  351.  + w I                  ierr = CG( A, data, b, x, optMaxIters, optTolerance, niters, normr, normr0, &times[0], true);
+  352.  + w                    if (ierr) HPCG_fout << "Error in call to CG: " << ierr << ".\n" << endl;
+  353.  + w                    if (rank==0) HPCG_fout << "Call [" << i << "] Scaled Residual [" << normr/normr0 << "]" << endl;
+  354.    w                    testnorms_data.values[i] = normr/normr0; // Record scaled residual from this run
+  355.    w-------------->   }
+  356.                     
+  357.                       // Compute difference between known exact solution and computed solution
+  358.                       // All processors are needed here.
+  359.                     #ifdef HPCG_DEBUG
+  360.                       double residual = 0;
+  361.                       ierr = ComputeResidual(A.localNumberOfRows, x, xexact, residual);
+  362.                       if (ierr) HPCG_fout << "Error in call to compute_residual: " << ierr << ".\n" << endl;
+  363.                       if (rank==0) HPCG_fout << "Difference between computed and exact  = " << residual << ".\n" << endl;
+  364.                     #endif
+  365.                     
+  366.                       // Test Norm Results
+  367.  +                    ierr = TestNorms(testnorms_data);
+  368.                     
+  369.                       ////////////////////
+  370.                       // Report Results //
+  371.                       ////////////////////
+  372.                     
+  373.                       // Report results to YAML file
+  374.  + I                  ReportResults(A, numberOfMgLevels, numberOfCgSets, refMaxIters, optMaxIters, &times[0], testcg_data, testsymmetry_data, testnorms_data, global_failure, quickPath);
+  375.                     
+  376.                     //PAT_record(PAT_STATE_OFF);
+  377.  +                  stop_modeling();
+  378.                     
+  379.                       // Clean up
+  380.  +                    DeleteMatrix(A); // This delete will recursively delete all coarse grid data
+  381.    I                  DeleteCGData(data);
+  382.    I                  DeleteVector(x);
+  383.    I                  DeleteVector(b);
+  384.    I                  DeleteVector(xexact);
+  385.    I                  DeleteVector(x_overlap);
+  386.    I                  DeleteVector(b_computed);
+  387.    I                  delete [] testnorms_data.values;
+  388.                     
+  389.                     
+  390.                     
+  391.  +                    HPCG_Finalize();
+  392.                     
+  393.                       // Finish up
+  394.                     #ifndef HPCG_NO_MPI
+  395.  +                    MPI_Finalize();
+  396.                     #endif
+  397.  + Ip                 return 0;
+  398.                     }
+
+CC-3021 CC: IPA __sti___f3474c63_6b41ab26, File = iostream, Line = 74, Column = 25 
+  "Init" was not inlined because the compiler was unable to locate the routine.
+
+CC-6254 CC: VECTOR <unnamed>, File = stl_uninitialized.h, Line = 252 
+  A loop was not vectorized because a recurrence was found on "__niter" at line 252.
+
+CC-3001 CC: IPA <unnamed>, File = stl_uninitialized.h, Line = 252, Column = 18 
+  Tiny routine "vector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:427) was textually inlined.  NOT INLINED:  __throw_bad_alloc
+  : operator new.
+
+CC-3001 CC: IPA <unnamed>, File = stl_uninitialized.h, Line = 252, Column = 18 
+  Tiny routine "~vector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:565) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected.
+
+CC-3001 CC: IPA DeleteGeometry, File = Geometry.hpp, Line = 126, Column = 3 
+  Tiny routine "operator delete[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2108) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteGeometry, File = Geometry.hpp, Line = 127, Column = 3 
+  Tiny routine "operator delete[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2108) was textually inlined and flattened.
+
+CC-3001 CC: IPA <unnamed>, File = Vector.hpp, Line = 83, Column = 12 
+  Tiny leaf routine "_Hash_node_base"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:219) was textually inlined.
+
+CC-3001 CC: IPA DeleteMGData, File = MGData.hpp, Line = 67, Column = 3 
+  Tiny routine "operator delete[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2108) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMGData, File = MGData.hpp, Line = 68, Column = 3 
+  Tiny routine "DeleteVector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:108) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMGData, File = MGData.hpp, Line = 69, Column = 3 
+  Tiny routine "DeleteVector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:108) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMGData, File = MGData.hpp, Line = 70, Column = 3 
+  Tiny routine "DeleteVector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:108) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMGData, File = MGData.hpp, Line = 71, Column = 3 
+  Tiny routine "operator delete"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2106) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMGData, File = MGData.hpp, Line = 72, Column = 3 
+  Tiny routine "operator delete"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2106) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMGData, File = MGData.hpp, Line = 73, Column = 3 
+  Tiny routine "operator delete"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2106) was textually inlined and flattened.
+
+CC-3118 CC: IPA <unnamed>, File = hashtable_policy.h, Line = 2136, Column = 27 
+  "~_Hashtable"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:1369) was not inlined because the call site will not flatten. 
+  "__cxa_call_unexpected" is missing.
+
+CC-3001 CC: IPA <unnamed>, File = hashtable_policy.h, Line = 2136, Column = 27 
+  Tiny leaf routine "_Vector_impl"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:95) was textually inlined.
+
+CC-3001 CC: IPA <unnamed>, File = hashtable_policy.h, Line = 2136, Column = 27 
+  Tiny routine "vector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:391) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected.
+
+CC-6263 CC: VECTOR ~_Hashtable, File = hashtable.h, Line = 1371 
+  A loop was not vectorized because it contains a reference to a non-vector intrinsic on line 1371.
+
+CC-3001 CC: IPA main, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny routine "~vector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:565) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected.
+
+CC-3001 CC: IPA main, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny leaf routine "~allocator"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:139) was textually inlined.
+
+CC-3001 CC: IPA main, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny routine "~vector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:565) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected.
+
+CC-3001 CC: IPA main, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny leaf routine "~allocator"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:139) was textually inlined.
+
+CC-3118 CC: IPA main, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  "~SparseMatrix_STRUCT"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:39) was not inlined because the call site will not flatten. 
+  "__cxa_call_unexpected" is missing.
+
+CC-3001 CC: IPA main, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny routine "~vector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:565) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected.
+
+CC-3001 CC: IPA main, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny leaf routine "~allocator"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:139) was textually inlined.
+
+CC-3118 CC: IPA <unnamed>, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  "SparseMatrix_STRUCT"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:39) was not inlined because the call site will not flatten. 
+  "__cxa_call_unexpected" is missing.
+
+CC-3001 CC: IPA <unnamed>, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny routine "_Hashtable"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:413) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-3001 CC: IPA <unnamed>, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny routine "unordered_map"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:141) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-6263 CC: VECTOR DeleteMatrix, File = SparseMatrix.hpp, Line = 154 
+  A loop was not vectorized because it contains a reference to a non-vector intrinsic on line 155.
+
+CC-3001 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 155, Column = 5 
+  Tiny routine "operator delete[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2108) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 156, Column = 5 
+  Tiny routine "operator delete[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2108) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 157, Column = 5 
+  Tiny routine "operator delete[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2108) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 164, Column = 33 
+  Tiny routine "operator delete[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2108) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 165, Column = 36 
+  Tiny routine "operator delete[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2108) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 166, Column = 18 
+  Tiny routine "operator delete[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2108) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 167, Column = 18 
+  Tiny routine "operator delete[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2108) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 168, Column = 23 
+  Tiny routine "operator delete[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2108) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 169, Column = 35 
+  Tiny routine "operator delete[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2108) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 172, Column = 31 
+  Tiny routine "operator delete[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2108) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 173, Column = 33 
+  Tiny routine "operator delete[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2108) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 174, Column = 35 
+  Tiny routine "operator delete[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2108) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 175, Column = 32 
+  Tiny routine "operator delete[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2108) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 176, Column = 32 
+  Tiny routine "operator delete[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2108) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 179, Column = 20 
+  Tiny routine "DeleteGeometry"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:124) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 179, Column = 45 
+  Tiny routine "operator delete"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2106) was textually inlined and flattened.
+
+CC-3039 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 180, Column = 18 
+  "DeleteMatrix"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:151) was not inlined because there is a recursive call.
+
+CC-3118 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 180, Column = 39 
+  "~SparseMatrix_STRUCT"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:39) was not inlined because the call site will not flatten. 
+  "__cxa_call_unexpected" is missing.
+
+CC-3001 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 180, Column = 39 
+  Tiny routine "operator delete"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2106) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 181, Column = 22 
+  Tiny routine "DeleteMGData"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:65) was textually inlined and flattened.
+
+CC-3001 CC: IPA DeleteMatrix, File = SparseMatrix.hpp, Line = 181, Column = 47 
+  Tiny routine "operator delete"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2106) was textually inlined and flattened.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 86, Column = 3 
+  "MPI_Init" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 91, Column = 3 
+  "HPCG_Init" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 120, Column = 3 
+  "CheckAspectRatio" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 133, Column = 19 
+  "operator new" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 134, Column = 3 
+  "GenerateGeometry" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 136, Column = 3 
+  "CheckAspectRatio" was not inlined because the compiler was unable to locate the routine.
+
+CC-6254 CC: VECTOR main, File = main.cpp, Line = 141 
+  A loop was not vectorized because a recurrence was found on "__niter" at line 141.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 141, Column = 25 
+  Tiny leaf routine "allocator"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:131) was textually inlined.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 141, Column = 25 
+  Tiny routine "vector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:427) was textually inlined.  NOT INLINED:  operator new.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 141, Column = 25 
+  Tiny leaf routine "~allocator"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:139) was textually inlined.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 143, Column = 21 
+  "mytimer" was not inlined because the compiler was unable to locate the routine.
+
+CC-3118 CC: IPA main, File = main.cpp, Line = 145, Column = 16 
+  "SparseMatrix_STRUCT"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:39) was not inlined because the call site will not flatten. 
+  "__cxa_call_unexpected" is missing.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 146, Column = 3 
+  Tiny leaf routine "InitializeSparseMatrix"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:84) was textually inlined.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 149, Column = 3 
+  "GenerateProblem" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 150, Column = 3 
+  "SetupHalo" was not inlined because the compiler was unable to locate the routine.
+
+CC-6287 CC: VECTOR main, File = main.cpp, Line = 153 
+  A loop was not vectorized because it contains a call to function "GenerateCoarseProblem" on line 154.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 154, Column = 5 
+  "GenerateCoarseProblem" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 158, Column = 3 
+  "mytimer" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 159, Column = 3 
+  Tiny leaf routine "operator[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:930) was textually inlined.
+
+CC-6287 CC: VECTOR main, File = main.cpp, Line = 165 
+  A loop was not vectorized because it contains a call to function "CheckProblem" on line 166.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 166, Column = 6 
+  "CheckProblem" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 175, Column = 3 
+  Tiny routine "InitializeSparseCGData"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:41) was textually inlined.  NOT INLINED: 
+  __cxa_throw_bad_array_new_length : operator new : operator new.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 189, Column = 3 
+  Tiny routine "InitializeVector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:45) was textually inlined.  NOT INLINED: 
+  __cxa_throw_bad_array_new_length : operator new.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 190, Column = 3 
+  Tiny routine "InitializeVector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:45) was textually inlined.  NOT INLINED: 
+  __cxa_throw_bad_array_new_length : operator new.
+
+CC-6287 CC: VECTOR main, File = main.cpp, Line = 195 
+  A loop was not vectorized because it contains a call to function "rand" on line 195.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 195, Column = 3 
+  Tiny routine "FillRandomVector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:81) was textually inlined.  NOT INLINED:  rand.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 199, Column = 18 
+  "mytimer" was not inlined because the compiler was unable to locate the routine.
+
+CC-6287 CC: VECTOR main, File = main.cpp, Line = 200 
+  A loop was not vectorized because it contains a call to function "ComputeSPMV_ref" on line 201.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 201, Column = 5 
+  "ComputeSPMV_ref" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 202, Column = 15 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 202, Column = 15 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 202, Column = 15 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 202, Column = 15 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 203, Column = 5 
+  "ComputeMG_ref" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 204, Column = 15 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 204, Column = 15 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 204, Column = 15 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 204, Column = 15 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 206, Column = 3 
+  Tiny leaf routine "operator[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:930) was textually inlined.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 206, Column = 3 
+  "mytimer" was not inlined because the compiler was unable to locate the routine.
+
+CC-6254 CC: VECTOR main, File = main.cpp, Line = 228 
+  A loop was not vectorized because a recurrence was found on "__niter" at line 228.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 228, Column = 25 
+  Tiny leaf routine "allocator"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:131) was textually inlined.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 228, Column = 25 
+  Tiny routine "vector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:427) was textually inlined.  NOT INLINED:  operator new.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 228, Column = 25 
+  Tiny leaf routine "~allocator"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:139) was textually inlined.
+
+CC-6008 CC: SCALAR main, File = main.cpp, Line = 231 
+  A loop was unwound.
+
+CC-6005 CC: SCALAR main, File = main.cpp, Line = 232 
+  A loop was unrolled 4 times.
+
+CC-6204 CC: VECTOR main, File = main.cpp, Line = 232 
+  A loop was vectorized.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 232, Column = 5 
+  Tiny leaf routine "ZeroVector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:57) was textually inlined.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 233, Column = 5 
+  Tiny leaf routine "operator[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:930) was textually inlined.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 233, Column = 5 
+  "CG_ref" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 237, Column = 31 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 237, Column = 31 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 237, Column = 31 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 241, Column = 13 
+  "mytimer" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 242, Column = 3 
+  "OptimizeProblem" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 243, Column = 3 
+  "mytimer" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 244, Column = 3 
+  Tiny leaf routine "operator[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:930) was textually inlined.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 263, Column = 3 
+  "TestCG" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 266, Column = 3 
+  "TestSymmetry" was not inlined because the compiler was unable to locate the routine.
+
+CC-6254 CC: VECTOR main, File = main.cpp, Line = 290 
+  A loop was not vectorized because a recurrence was found on "__niter" at line 290.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 290, Column = 25 
+  Tiny leaf routine "allocator"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:131) was textually inlined.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 290, Column = 25 
+  Tiny routine "vector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:427) was textually inlined.  NOT INLINED:  operator new.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 290, Column = 25 
+  Tiny leaf routine "~allocator"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:139) was textually inlined.
+
+CC-6008 CC: SCALAR main, File = main.cpp, Line = 293 
+  A loop was unwound.
+
+CC-6005 CC: SCALAR main, File = main.cpp, Line = 294 
+  A loop was unrolled 4 times.
+
+CC-6204 CC: VECTOR main, File = main.cpp, Line = 294 
+  A loop was vectorized.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 294, Column = 5 
+  Tiny leaf routine "ZeroVector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:57) was textually inlined.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 295, Column = 34 
+  Tiny leaf routine "operator[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:930) was textually inlined.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 296, Column = 5 
+  Tiny leaf routine "operator[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:930) was textually inlined.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 296, Column = 5 
+  "CG" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 303, Column = 25 
+  Tiny leaf routine "operator[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:930) was textually inlined.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 310, Column = 3 
+  "MPI_Allreduce" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 314, Column = 31 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 314, Column = 31 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 314, Column = 31 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 318, Column = 7 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 318, Column = 7 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 318, Column = 7 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 318, Column = 7 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 344, Column = 3 
+  Tiny routine "operator new[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2108) was textually inlined.  NOT INLINED:  operator
+  new.
+
+CC-3177 CC: IPA main, File = main.cpp, Line = 347, Column = 1 
+  "start_modeling"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:76) was not inlined because inlining has been disabled with a
+  compiler directive.
+
+CC-6008 CC: SCALAR main, File = main.cpp, Line = 349 
+  A loop was unwound.
+
+CC-6005 CC: SCALAR main, File = main.cpp, Line = 350 
+  A loop was unrolled 4 times.
+
+CC-6204 CC: VECTOR main, File = main.cpp, Line = 350 
+  A loop was vectorized.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 350, Column = 5 
+  Tiny leaf routine "ZeroVector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:57) was textually inlined.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 351, Column = 5 
+  Tiny leaf routine "operator[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:930) was textually inlined.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 351, Column = 5 
+  "CG" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 352, Column = 15 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 352, Column = 15 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 352, Column = 15 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 352, Column = 15 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 353, Column = 18 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 353, Column = 18 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 353, Column = 18 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 353, Column = 18 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 353, Column = 18 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 353, Column = 18 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 367, Column = 3 
+  "TestNorms" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 374, Column = 3 
+  Tiny leaf routine "operator[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:930) was textually inlined.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 374, Column = 3 
+  "ReportResults" was not inlined because the compiler was unable to locate the routine.
+
+CC-3177 CC: IPA main, File = main.cpp, Line = 377, Column = 1 
+  "stop_modeling"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:79) was not inlined because inlining has been disabled with a
+  compiler directive.
+
+CC-3039 CC: IPA main, File = main.cpp, Line = 380, Column = 3 
+  "DeleteMatrix"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:151) was not inlined because there is a recursive call.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 381, Column = 3 
+  Tiny routine "DeleteCGData"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:56) was textually inlined and flattened.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 382, Column = 3 
+  Tiny routine "DeleteVector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:108) was textually inlined and flattened.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 383, Column = 3 
+  Tiny routine "DeleteVector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:108) was textually inlined and flattened.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 384, Column = 3 
+  Tiny routine "DeleteVector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:108) was textually inlined and flattened.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 385, Column = 3 
+  Tiny routine "DeleteVector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:108) was textually inlined and flattened.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 386, Column = 3 
+  Tiny routine "DeleteVector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:108) was textually inlined and flattened.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 387, Column = 3 
+  Tiny routine "operator delete[]"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:2108) was textually inlined and flattened.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 391, Column = 3 
+  "HPCG_Finalize" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA main, File = main.cpp, Line = 395, Column = 3 
+  "MPI_Finalize" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 397, Column = 3 
+  Tiny routine "~vector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:565) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 397, Column = 3 
+  Tiny routine "~vector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:565) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected.
+
+CC-3118 CC: IPA main, File = main.cpp, Line = 397, Column = 3 
+  "~SparseMatrix_STRUCT"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:39) was not inlined because the call site will not flatten. 
+  "__cxa_call_unexpected" is missing.
+
+CC-3001 CC: IPA main, File = main.cpp, Line = 397, Column = 3 
+  Tiny routine "~vector"(/cray/css/users/smehta/hpcg-orig/src/main.cpp:565) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

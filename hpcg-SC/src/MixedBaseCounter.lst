@@ -1,0 +1,169 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/MixedBaseCounter.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c -o src/MixedBaseCounter.o src/MixedBaseCounter.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/MixedBaseCounter.cpp
+Date     : 06/04/2020  19:33:19
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.    Vcw-----<> 
+    2.               #include <map>
+    3.               
+    4.               #include "MixedBaseCounter.hpp"
+    5.               
+    6.               MixedBaseCounter::MixedBaseCounter(int *counts, int length) {
+    7.                 this->length = length;
+    8.               
+    9.  + I            int i;
+   10.               
+   11.    Vcw------<   for (i = 0; i < 32; ++i) {
+   12.    Vcw            this->max_counts[i] = counts[i];
+   13.    Vcw            this->cur_counts[i] = 0;
+   14.    Vcw------>   }
+   15.                 // terminate with 0's
+   16.                 this->max_counts[i]      = this->cur_counts[i]      = 0;
+   17.                 this->max_counts[length] = this->cur_counts[length] = 0;
+   18.               }
+   19.               
+   20.               MixedBaseCounter::MixedBaseCounter(MixedBaseCounter & left, MixedBaseCounter & right) {
+   21.                 this->length = left.length;
+   22.  + 1--------<   for (int i = 0; i < left.length; ++i) {
+   23.    1              this->max_counts[i] = left.max_counts[i] - right.cur_counts[i];
+   24.    1              this->cur_counts[i] = 0;
+   25.    1-------->   }
+   26.               }
+   27.               
+   28.               void
+   29.               MixedBaseCounter::next() {
+   30.  + 1--------<   for (int i = 0; i < this->length; ++i) {
+   31.    1              this->cur_counts[i]++;
+   32.    1              if (this->cur_counts[i] > this->max_counts[i]) {
+   33.    1                this->cur_counts[i] = 0;
+   34.    1                continue;
+   35.    1              }
+   36.    1              break;
+   37.    1-------->   }
+   38.               }
+   39.               
+   40.               int
+   41.               MixedBaseCounter::is_zero() {
+   42.  + 1--------<   for (int i = 0; i < this->length; ++i)
+   43.    1              if (this->cur_counts[i])
+   44.    1-------->       return 0;
+   45.                 return 1;
+   46.               }
+   47.               
+   48.               int
+   49.               MixedBaseCounter::product(int * multipliers) {
+   50.                 int k=0, x=1;
+   51.               
+   52.  + 1--------<   for (int i = 0; i < this->length; ++i)
+   53.    1 D------<     for (int j = 0; j < this->cur_counts[i]; ++j) {
+   54.    1 D              k = 1;
+   55.    1 D              x *= multipliers[i];
+   56.    1 D----->>     }
+   57.               
+   58.                 return x * k;
+   59.               }
+
+CC-6373 CC: VECTOR <unnamed>, File = MixedBaseCounter.cpp, Line = 1 
+  A loop with a trip count of 32 was unwound into 2 vector iterations.
+
+CC-6213 CC: VECTOR <unnamed>, File = MixedBaseCounter.cpp, Line = 1 
+  A loop was conditionally vectorized.
+
+CC-6254 CC: VECTOR <unnamed>, File = MixedBaseCounter.cpp, Line = 9 
+  A loop was not vectorized because a recurrence was found on "i" at line 9.
+
+CC-3001 CC: IPA <unnamed>, File = MixedBaseCounter.cpp, Line = 9, Column = 7 
+  Tiny leaf routine "MixedBaseCounter"(/cray/css/users/smehta/hpcg-orig/src/MixedBaseCounter.cpp:20) was textually inlined.
+
+CC-6373 CC: VECTOR MixedBaseCounter, File = MixedBaseCounter.cpp, Line = 11 
+  A loop with a trip count of 32 was unwound into 2 vector iterations.
+
+CC-6213 CC: VECTOR MixedBaseCounter, File = MixedBaseCounter.cpp, Line = 11 
+  A loop was conditionally vectorized.
+
+CC-6289 CC: VECTOR MixedBaseCounter, File = MixedBaseCounter.cpp, Line = 22 
+  A loop was not vectorized because a recurrence was found on "i" between lines 23 and 22.
+
+CC-6281 CC: VECTOR next, File = MixedBaseCounter.cpp, Line = 30 
+  A loop was not vectorized because it contains possible dependencies between initial statements and a loop exit test.
+
+CC-6250 CC: VECTOR is_zero, File = MixedBaseCounter.cpp, Line = 42 
+  A loop was not vectorized for an unspecified reason.
+
+CC-6375 CC: VECTOR product, File = MixedBaseCounter.cpp, Line = 52 
+  A loop would benefit from "#pragma safe_address".
+
+CC-6250 CC: VECTOR product, File = MixedBaseCounter.cpp, Line = 52 
+  A loop was not vectorized for an unspecified reason.
+
+CC-6002 CC: SCALAR product, File = MixedBaseCounter.cpp, Line = 53 
+  A loop was eliminated by optimization.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

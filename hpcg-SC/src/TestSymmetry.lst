@@ -1,0 +1,461 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/TestSymmetry.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c -o src/TestSymmetry.o src/TestSymmetry.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/TestSymmetry.cpp
+Date     : 06/04/2020  19:33:20
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.                 
+    2.                 //@HEADER
+    3.                 // ***************************************************
+    4.                 //
+    5.                 // HPCG: High Performance Conjugate Gradient Benchmark
+    6.                 //
+    7.                 // Contact:
+    8.                 // Michael A. Heroux ( maherou@sandia.gov)
+    9.                 // Jack Dongarra     (dongarra@eecs.utk.edu)
+   10.                 // Piotr Luszczek    (luszczek@eecs.utk.edu)
+   11.                 //
+   12.                 // ***************************************************
+   13.                 //@HEADER
+   14.                 
+   15.                 /*!
+   16.                  @file TestSymmetry.cpp
+   17.                 
+   18.                  HPCG routine
+   19.                  */
+   20.                 
+   21.                 // The MPI include must be first for Windows platforms
+   22.                 #ifndef HPCG_NO_MPI
+   23.                 #include <mpi.h>
+   24.                 #endif
+   25.                 #include <fstream>
+   26.                 #include <iostream>
+   27.                 #include <cfloat>
+   28.                 using std::endl;
+   29.                 #include <vector>
+   30.                 #include <cmath>
+   31.                 
+   32.                 #include "hpcg.hpp"
+   33.                 
+   34.                 #include "ComputeSPMV.hpp"
+   35.                 #include "ComputeMG.hpp"
+   36.                 #include "ComputeDotProduct.hpp"
+   37.                 #include "ComputeResidual.hpp"
+   38.                 #include "Geometry.hpp"
+   39.                 #include "SparseMatrix.hpp"
+   40.                 #include "TestSymmetry.hpp"
+   41.                 
+   42.                 /*!
+   43.                   Tests symmetry-preserving properties of the sparse matrix vector multiply and multi-grid routines.
+   44.                 
+   45.                   @param[in]    geom   The description of the problem's geometry.
+   46.                   @param[in]    A      The known system matrix
+   47.                   @param[in]    b      The known right hand side vector
+   48.                   @param[in]    xexact The exact solution vector
+   49.                   @param[inout] testsymmetry_data The data structure with the results of the CG symmetry test including pass/fail information
+   50.                 
+   51.                   @return returns 0 upon success and non-zero otherwise
+   52.                 
+   53.                   @see ComputeDotProduct
+   54.                   @see ComputeDotProduct_ref
+   55.                   @see ComputeSPMV
+   56.                   @see ComputeSPMV_ref
+   57.                   @see ComputeMG
+   58.                   @see ComputeMG_ref
+   59.                 */
+   60.                 int TestSymmetry(SparseMatrix & A, Vector & b, Vector & xexact, TestSymmetryData & testsymmetry_data) {
+   61.                 
+   62.                  local_int_t nrow = A.localNumberOfRows;
+   63.                  local_int_t ncol = A.localNumberOfColumns;
+   64.                 
+   65.                  Vector x_ncol, y_ncol, z_ncol;
+   66.    Ip            InitializeVector(x_ncol, ncol);
+   67.    Ip            InitializeVector(y_ncol, ncol);
+   68.    Ip            InitializeVector(z_ncol, ncol);
+   69.                 
+   70.                  double t4 = 0.0; // Needed for dot-product call, otherwise unused
+   71.                  testsymmetry_data.count_fail = 0;
+   72.                 
+   73.                  // Test symmetry of matrix
+   74.                 
+   75.                  // First load vectors with random values
+   76.  + Ip            FillRandomVector(x_ncol);
+   77.  + Ip            FillRandomVector(y_ncol);
+   78.                 
+   79.                  double xNorm2, yNorm2;
+   80.                  double ANorm = 2 * 26.0;
+   81.                 
+   82.                  // Next, compute x'*A*y
+   83.  +               ComputeDotProduct(nrow, y_ncol, y_ncol, yNorm2, t4, A.isDotProductOptimized);
+   84.  +               int ierr = ComputeSPMV(A, y_ncol, z_ncol); // z_nrow = A*y_overlap
+   85.  +               if (ierr) HPCG_fout << "Error in call to SpMV: " << ierr << ".\n" << endl;
+   86.                  double xtAy = 0.0;
+   87.  +               ierr = ComputeDotProduct(nrow, x_ncol, z_ncol, xtAy, t4, A.isDotProductOptimized); // x'*A*y
+   88.  +               if (ierr) HPCG_fout << "Error in call to dot: " << ierr << ".\n" << endl;
+   89.                 
+   90.                  // Next, compute y'*A*x
+   91.  +               ComputeDotProduct(nrow, x_ncol, x_ncol, xNorm2, t4, A.isDotProductOptimized);
+   92.  +               ierr = ComputeSPMV(A, x_ncol, z_ncol); // b_computed = A*x_overlap
+   93.  +               if (ierr) HPCG_fout << "Error in call to SpMV: " << ierr << ".\n" << endl;
+   94.                  double ytAx = 0.0;
+   95.  +               ierr = ComputeDotProduct(nrow, y_ncol, z_ncol, ytAx, t4, A.isDotProductOptimized); // y'*A*x
+   96.  +               if (ierr) HPCG_fout << "Error in call to dot: " << ierr << ".\n" << endl;
+   97.                 
+   98.    I             testsymmetry_data.depsym_spmv = std::fabs((long double) (xtAy - ytAx))/((xNorm2*ANorm*yNorm2 + yNorm2*ANorm*xNorm2) * (DBL_EPSILON));
+   99.                  if (testsymmetry_data.depsym_spmv > 1.0) ++testsymmetry_data.count_fail;  // If the difference is > 1, count it wrong
+  100.  +               if (A.geom->rank==0) HPCG_fout << "Departure from symmetry (scaled) for SpMV abs(x'*A*y - y'*A*x) = " << testsymmetry_data.depsym_spmv << endl;
+  101.                 
+  102.                  // Test symmetry of multi-grid
+  103.                 
+  104.                  // Compute x'*Minv*y
+  105.  +               ierr = ComputeMG(A, y_ncol, z_ncol); // z_ncol = Minv*y_ncol
+  106.  +               if (ierr) HPCG_fout << "Error in call to MG: " << ierr << ".\n" << endl;
+  107.                  double xtMinvy = 0.0;
+  108.  +               ierr = ComputeDotProduct(nrow, x_ncol, z_ncol, xtMinvy, t4, A.isDotProductOptimized); // x'*Minv*y
+  109.  +               if (ierr) HPCG_fout << "Error in call to dot: " << ierr << ".\n" << endl;
+  110.                 
+  111.                  // Next, compute z'*Minv*x
+  112.  +               ierr = ComputeMG(A, x_ncol, z_ncol); // z_ncol = Minv*x_ncol
+  113.  +               if (ierr) HPCG_fout << "Error in call to MG: " << ierr << ".\n" << endl;
+  114.                  double ytMinvx = 0.0;
+  115.  +               ierr = ComputeDotProduct(nrow, y_ncol, z_ncol, ytMinvx, t4, A.isDotProductOptimized); // y'*Minv*x
+  116.  +               if (ierr) HPCG_fout << "Error in call to dot: " << ierr << ".\n" << endl;
+  117.                 
+  118.    I             testsymmetry_data.depsym_mg = std::fabs((long double) (xtMinvy - ytMinvx))/((xNorm2*ANorm*yNorm2 + yNorm2*ANorm*xNorm2) * (DBL_EPSILON));
+  119.                  if (testsymmetry_data.depsym_mg > 1.0) ++testsymmetry_data.count_fail;  // If the difference is > 1, count it wrong
+  120.  +               if (A.geom->rank==0) HPCG_fout << "Departure from symmetry (scaled) for MG abs(x'*Minv*y - y'*Minv*x) = " << testsymmetry_data.depsym_mg << endl;
+  121.                 
+  122.    Vcr4 I----<>  CopyVector(xexact, x_ncol); // Copy exact answer into overlap vector
+  123.                 
+  124.                  int numberOfCalls = 2;
+  125.                  double residual = 0.0;
+  126.  + 1----------<  for (int i=0; i< numberOfCalls; ++i) {
+  127.  + 1               ierr = ComputeSPMV(A, x_ncol, z_ncol); // b_computed = A*x_overlap
+  128.  + 1               if (ierr) HPCG_fout << "Error in call to SpMV: " << ierr << ".\n" << endl;
+  129.  + 1               if ((ierr = ComputeResidual(A.localNumberOfRows, b, z_ncol, residual)))
+  130.  + 1                 HPCG_fout << "Error in call to compute_residual: " << ierr << ".\n" << endl;
+  131.  + 1               if (A.geom->rank==0) HPCG_fout << "SpMV call [" << i << "] Residual [" << residual << "]" << endl;
+  132.    1---------->  }
+  133.    I             DeleteVector(x_ncol);
+  134.    I             DeleteVector(y_ncol);
+  135.    I             DeleteVector(z_ncol);
+  136.                 
+  137.                  return 0;
+  138.                 }
+  139.                 
+
+CC-3021 CC: IPA __sti___07c71d36_d0881216, File = iostream, Line = 74, Column = 25 
+  "Init" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 66, Column = 2 
+  Tiny routine "InitializeVector"(/cray/css/users/smehta/hpcg-orig/src/TestSymmetry.cpp:45) was textually inlined.  NOT INLINED: 
+  __cxa_throw_bad_array_new_length : operator new.
+
+CC-3001 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 67, Column = 2 
+  Tiny routine "InitializeVector"(/cray/css/users/smehta/hpcg-orig/src/TestSymmetry.cpp:45) was textually inlined.  NOT INLINED: 
+  __cxa_throw_bad_array_new_length : operator new.
+
+CC-3001 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 68, Column = 2 
+  Tiny routine "InitializeVector"(/cray/css/users/smehta/hpcg-orig/src/TestSymmetry.cpp:45) was textually inlined.  NOT INLINED: 
+  __cxa_throw_bad_array_new_length : operator new.
+
+CC-6287 CC: VECTOR TestSymmetry, File = TestSymmetry.cpp, Line = 76 
+  A loop was not vectorized because it contains a call to function "rand" on line 76.
+
+CC-3001 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 76, Column = 2 
+  Tiny routine "FillRandomVector"(/cray/css/users/smehta/hpcg-orig/src/TestSymmetry.cpp:81) was textually inlined.  NOT INLINED: 
+  rand.
+
+CC-6287 CC: VECTOR TestSymmetry, File = TestSymmetry.cpp, Line = 77 
+  A loop was not vectorized because it contains a call to function "rand" on line 77.
+
+CC-3001 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 77, Column = 2 
+  Tiny routine "FillRandomVector"(/cray/css/users/smehta/hpcg-orig/src/TestSymmetry.cpp:81) was textually inlined.  NOT INLINED: 
+  rand.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 83, Column = 2 
+  "ComputeDotProduct" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 84, Column = 11 
+  "ComputeSPMV" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 85, Column = 12 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 85, Column = 12 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 85, Column = 12 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 85, Column = 12 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 87, Column = 2 
+  "ComputeDotProduct" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 88, Column = 12 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 88, Column = 12 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 88, Column = 12 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 88, Column = 12 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 91, Column = 2 
+  "ComputeDotProduct" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 92, Column = 2 
+  "ComputeSPMV" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 93, Column = 12 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 93, Column = 12 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 93, Column = 12 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 93, Column = 12 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 95, Column = 2 
+  "ComputeDotProduct" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 96, Column = 12 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 96, Column = 12 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 96, Column = 12 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 96, Column = 12 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 98, Column = 2 
+  Tiny leaf routine "fabs"(/cray/css/users/smehta/hpcg-orig/src/TestSymmetry.cpp:245) was textually inlined.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 100, Column = 23 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 100, Column = 23 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 100, Column = 23 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 105, Column = 2 
+  "ComputeMG" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 106, Column = 12 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 106, Column = 12 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 106, Column = 12 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 106, Column = 12 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 108, Column = 2 
+  "ComputeDotProduct" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 109, Column = 12 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 109, Column = 12 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 109, Column = 12 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 109, Column = 12 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 112, Column = 2 
+  "ComputeMG" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 113, Column = 12 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 113, Column = 12 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 113, Column = 12 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 113, Column = 12 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 115, Column = 2 
+  "ComputeDotProduct" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 116, Column = 12 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 116, Column = 12 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 116, Column = 12 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 116, Column = 12 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 118, Column = 2 
+  Tiny leaf routine "fabs"(/cray/css/users/smehta/hpcg-orig/src/TestSymmetry.cpp:245) was textually inlined.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 120, Column = 23 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 120, Column = 23 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 120, Column = 23 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-6005 CC: SCALAR TestSymmetry, File = TestSymmetry.cpp, Line = 122 
+  A loop was unrolled 4 times.
+
+CC-6213 CC: VECTOR TestSymmetry, File = TestSymmetry.cpp, Line = 122 
+  A loop was conditionally vectorized.
+
+CC-3001 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 122, Column = 2 
+  Tiny routine "CopyVector"(/cray/css/users/smehta/hpcg-orig/src/TestSymmetry.cpp:93) was textually inlined.
+
+CC-6287 CC: VECTOR TestSymmetry, File = TestSymmetry.cpp, Line = 126 
+  A loop was not vectorized because it contains a call to function "ComputeSPMV" on line 127.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 127, Column = 4 
+  "ComputeSPMV" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 128, Column = 14 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 128, Column = 14 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 128, Column = 14 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 128, Column = 14 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 129, Column = 4 
+  "ComputeResidual" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 130, Column = 6 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 130, Column = 6 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 130, Column = 6 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 130, Column = 6 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 131, Column = 25 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 131, Column = 25 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 131, Column = 25 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 131, Column = 25 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 131, Column = 25 
+  "operator<<<char_traits<char>>" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 131, Column = 25 
+  "operator<<" was not inlined because the compiler was unable to locate the routine.
+
+CC-3001 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 133, Column = 2 
+  Tiny routine "DeleteVector"(/cray/css/users/smehta/hpcg-orig/src/TestSymmetry.cpp:108) was textually inlined and flattened.
+
+CC-3001 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 134, Column = 2 
+  Tiny routine "DeleteVector"(/cray/css/users/smehta/hpcg-orig/src/TestSymmetry.cpp:108) was textually inlined and flattened.
+
+CC-3001 CC: IPA TestSymmetry, File = TestSymmetry.cpp, Line = 135, Column = 2 
+  Tiny routine "DeleteVector"(/cray/css/users/smehta/hpcg-orig/src/TestSymmetry.cpp:108) was textually inlined and flattened.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

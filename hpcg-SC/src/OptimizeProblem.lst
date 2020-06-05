@@ -1,0 +1,180 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/OptimizeProblem.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c -o src/OptimizeProblem.o src/OptimizeProblem.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/OptimizeProblem.cpp
+Date     : 06/04/2020  19:33:19
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.          
+    2.          //@HEADER
+    3.          // ***************************************************
+    4.          //
+    5.          // HPCG: High Performance Conjugate Gradient Benchmark
+    6.          //
+    7.          // Contact:
+    8.          // Michael A. Heroux ( maherou@sandia.gov)
+    9.          // Jack Dongarra     (dongarra@eecs.utk.edu)
+   10.          // Piotr Luszczek    (luszczek@eecs.utk.edu)
+   11.          //
+   12.          // ***************************************************
+   13.          //@HEADER
+   14.          
+   15.          /*!
+   16.           @file OptimizeProblem.cpp
+   17.          
+   18.           HPCG routine
+   19.           */
+   20.          
+   21.          #include "OptimizeProblem.hpp"
+   22.          /*!
+   23.            Optimizes the data structures used for CG iteration to increase the
+   24.            performance of the benchmark version of the preconditioned CG algorithm.
+   25.          
+   26.            @param[inout] A      The known system matrix, also contains the MG hierarchy in attributes Ac and mgData.
+   27.            @param[inout] data   The data structure with all necessary CG vectors preallocated
+   28.            @param[inout] b      The known right hand side vector
+   29.            @param[inout] x      The solution vector to be computed in future CG iteration
+   30.            @param[inout] xexact The exact solution vector
+   31.          
+   32.            @return returns 0 upon success and non-zero otherwise
+   33.          
+   34.            @see GenerateGeometry
+   35.            @see GenerateProblem
+   36.          */
+   37.          int OptimizeProblem(SparseMatrix & A, CGData & data, Vector & b, Vector & x, Vector & xexact) {
+   38.          
+   39.            // This function can be used to completely transform any part of the data structures.
+   40.            // Right now it does nothing, so compiling with a check for unused variables results in complaints
+   41.          
+   42.          #if defined(HPCG_USE_MULTICOLORING)
+   43.            const local_int_t nrow = A.localNumberOfRows;
+   44.            std::vector<local_int_t> colors(nrow, nrow); // value `nrow' means `uninitialized'; initialized colors go from 0 to nrow-1
+   45.            int totalColors = 1;
+   46.            colors[0] = 0; // first point gets color 0
+   47.          
+   48.            // Finds colors in a greedy (a likely non-optimal) fashion.
+   49.          
+   50.            for (local_int_t i=1; i < nrow; ++i) {
+   51.              if (colors[i] == nrow) { // if color not assigned
+   52.                std::vector<int> assigned(totalColors, 0);
+   53.                int currentlyAssigned = 0;
+   54.                const local_int_t * const currentColIndices = A.mtxIndL[i];
+   55.                const int currentNumberOfNonzeros = A.nonzerosInRow[i];
+   56.          
+   57.                for (int j=0; j< currentNumberOfNonzeros; j++) { // scan neighbors
+   58.                  local_int_t curCol = currentColIndices[j];
+   59.                  if (curCol < i) { // if this point has an assigned color (points beyond `i' are unassigned)
+   60.                    if (assigned[colors[curCol]] == 0)
+   61.                      currentlyAssigned += 1;
+   62.                    assigned[colors[curCol]] = 1; // this color has been used before by `curCol' point
+   63.                  } // else // could take advantage of indices being sorted
+   64.                }
+   65.          
+   66.                if (currentlyAssigned < totalColors) { // if there is at least one color left to use
+   67.                  for (int j=0; j < totalColors; ++j)  // try all current colors
+   68.                    if (assigned[j] == 0) { // if no neighbor with this color
+   69.                      colors[i] = j;
+   70.                      break;
+   71.                    }
+   72.                } else {
+   73.                  if (colors[i] == nrow) {
+   74.                    colors[i] = totalColors;
+   75.                    totalColors += 1;
+   76.                  }
+   77.                }
+   78.              }
+   79.            }
+   80.          
+   81.            std::vector<local_int_t> counters(totalColors);
+   82.            for (local_int_t i=0; i<nrow; ++i)
+   83.              counters[colors[i]]++;
+   84.          
+   85.            local_int_t old, old0;
+   86.            for (int i=1; i < totalColors; ++i) {
+   87.              old0 = counters[i];
+   88.              counters[i] = counters[i-1] + old;
+   89.              old = old0;
+   90.            }
+   91.            counters[0] = 0;
+   92.          
+   93.            // translate `colors' into a permutation
+   94.            for (local_int_t i=0; i<nrow; ++i) // for each color `c'
+   95.              colors[i] = counters[colors[i]]++;
+   96.          #endif
+   97.          
+   98.            return 0;
+   99.          }
+  100.          
+  101.          // Helper function (see OptimizeProblem.hpp for details)
+  102.          double OptimizeProblemMemoryUse(const SparseMatrix & A) {
+  103.          
+  104.            return 0.0;
+  105.          
+  106.          }
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

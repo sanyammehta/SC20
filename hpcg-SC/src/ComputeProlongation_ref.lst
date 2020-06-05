@@ -1,0 +1,139 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/ComputeProlongation_ref.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c
+           -o src/ComputeProlongation_ref.o src/ComputeProlongation_ref.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/ComputeProlongation_ref.cpp
+Date     : 06/04/2020  19:33:19
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.             
+    2.             //@HEADER
+    3.             // ***************************************************
+    4.             //
+    5.             // HPCG: High Performance Conjugate Gradient Benchmark
+    6.             //
+    7.             // Contact:
+    8.             // Michael A. Heroux ( maherou@sandia.gov)
+    9.             // Jack Dongarra     (dongarra@eecs.utk.edu)
+   10.             // Piotr Luszczek    (luszczek@eecs.utk.edu)
+   11.             //
+   12.             // ***************************************************
+   13.             //@HEADER
+   14.             
+   15.             /*!
+   16.              @file ComputeProlongation_ref.cpp
+   17.             
+   18.              HPCG routine
+   19.              */
+   20.             
+   21.             #ifndef HPCG_NO_OPENMP
+   22.             #include <omp.h>
+   23.             #endif
+   24.             
+   25.             #include "ComputeProlongation_ref.hpp"
+   26.             
+   27.             /*!
+   28.               Routine to compute the coarse residual vector.
+   29.             
+   30.               @param[in]  Af - Fine grid sparse matrix object containing pointers to current coarse grid correction and the f2c operator.
+   31.               @param[inout] xf - Fine grid solution vector, update with coarse grid correction.
+   32.             
+   33.               Note that the fine grid residual is never explicitly constructed.
+   34.               We only compute it for the fine grid points that will be injected into corresponding coarse grid points.
+   35.             
+   36.               @return Returns zero on success and a non-zero value otherwise.
+   37.             */
+   38.             int ComputeProlongation_ref(const SparseMatrix & Af, Vector & xf) {
+   39.             
+   40.               double * xfv = xf.values;
+   41.               double * xcv = Af.mgData->xc->values;
+   42.               local_int_t * f2c = Af.mgData->f2cOperator;
+   43.               local_int_t nc = Af.mgData->rc->localLength;
+   44.             
+   45.             #ifndef HPCG_NO_OPENMP
+   46.             #pragma omp parallel for
+   47.             #endif
+   48.             // TODO: Somehow note that this loop can be safely vectorized since f2c has no repeated indices
+   49.  + Mmr4--<>   for (local_int_t i=0; i<nc; ++i) xfv[f2c[i]] += xcv[i]; // This loop is safe to vectorize
+   50.             
+   51.               return 0;
+   52.             }
+
+CC-6005 CC: SCALAR ComputeProlongation_ref, File = ComputeProlongation_ref.cpp, Line = 49 
+  A loop was unrolled 4 times.
+
+CC-6823 CC: THREAD ComputeProlongation_ref, File = ComputeProlongation_ref.cpp, Line = 49 
+  A region starting at line 49 and ending at line 49 was multi-threaded.
+
+CC-6817 CC: THREAD ComputeProlongation_ref, File = ComputeProlongation_ref.cpp, Line = 49 
+  A loop was partitioned.
+
+CC-6290 CC: VECTOR ComputeProlongation_ref, File = ComputeProlongation_ref.cpp, Line = 49 
+  A loop was not vectorized because a recurrence was found between "xcv" and "xfv" at line 49.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

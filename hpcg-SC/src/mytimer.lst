@@ -1,0 +1,132 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/mytimer.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c -o src/mytimer.o src/mytimer.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/mytimer.cpp
+Date     : 06/04/2020  19:33:19
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.         
+    2.         //@HEADER
+    3.         // ***************************************************
+    4.         //
+    5.         // HPCG: High Performance Conjugate Gradient Benchmark
+    6.         //
+    7.         // Contact:
+    8.         // Michael A. Heroux ( maherou@sandia.gov)
+    9.         // Jack Dongarra     (dongarra@eecs.utk.edu)
+   10.         // Piotr Luszczek    (luszczek@eecs.utk.edu)
+   11.         //
+   12.         // ***************************************************
+   13.         //@HEADER
+   14.         
+   15.         /////////////////////////////////////////////////////////////////////////
+   16.         
+   17.         // Function to return time in seconds.
+   18.         // If compiled with no flags, return CPU time (user and system).
+   19.         // If compiled with -DWALL, returns elapsed time.
+   20.         
+   21.         /////////////////////////////////////////////////////////////////////////
+   22.         
+   23.         #ifndef HPCG_NO_MPI
+   24.         #include <mpi.h>
+   25.         
+   26.         double mytimer(void) {
+   27.  +        return MPI_Wtime();
+   28.         }
+   29.         
+   30.         #elif !defined(HPCG_NO_OPENMP)
+   31.         
+   32.         // If this routine is compiled with HPCG_NO_MPI defined and not compiled with HPCG_NO_OPENMP then use the OpenMP timer
+   33.         #include <omp.h>
+   34.         double mytimer(void) {
+   35.           return omp_get_wtime();
+   36.         }
+   37.         #else
+   38.         
+   39.         #include <cstdlib>
+   40.         #include <sys/time.h>
+   41.         #include <sys/resource.h>
+   42.         double mytimer(void) {
+   43.           struct timeval tp;
+   44.           static long start=0, startu;
+   45.           if (!start) {
+   46.             gettimeofday(&tp, NULL);
+   47.             start = tp.tv_sec;
+   48.             startu = tp.tv_usec;
+   49.             return 0.0;
+   50.           }
+   51.           gettimeofday(&tp, NULL);
+   52.           return ((double) (tp.tv_sec - start)) + (tp.tv_usec-startu)/1000000.0 ;
+   53.         }
+   54.         
+   55.         #endif
+
+CC-3021 CC: IPA mytimer, File = mytimer.cpp, Line = 27, Column = 3 
+  "MPI_Wtime" was not inlined because the compiler was unable to locate the routine.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -1,0 +1,205 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/ComputeSYMGS_ref.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c -o src/ComputeSYMGS_ref.o src/ComputeSYMGS_ref.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/ComputeSYMGS_ref.cpp
+Date     : 06/04/2020  19:33:19
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.             
+    2.             //@HEADER
+    3.             // ***************************************************
+    4.             //
+    5.             // HPCG: High Performance Conjugate Gradient Benchmark
+    6.             //
+    7.             // Contact:
+    8.             // Michael A. Heroux ( maherou@sandia.gov)
+    9.             // Jack Dongarra     (dongarra@eecs.utk.edu)
+   10.             // Piotr Luszczek    (luszczek@eecs.utk.edu)
+   11.             //
+   12.             // ***************************************************
+   13.             //@HEADER
+   14.             
+   15.             /*!
+   16.              @file ComputeSYMGS_ref.cpp
+   17.             
+   18.              HPCG routine
+   19.              */
+   20.             
+   21.             #ifndef HPCG_NO_MPI
+   22.             #include "ExchangeHalo.hpp"
+   23.             #endif
+   24.             #include "ComputeSYMGS_ref.hpp"
+   25.             #include <cassert>
+   26.             
+   27.             /*!
+   28.               Computes one step of symmetric Gauss-Seidel:
+   29.             
+   30.               Assumption about the structure of matrix A:
+   31.               - Each row 'i' of the matrix has nonzero diagonal value whose address is matrixDiagonal[i]
+   32.               - Entries in row 'i' are ordered such that:
+   33.                    - lower triangular terms are stored before the diagonal element.
+   34.                    - upper triangular terms are stored after the diagonal element.
+   35.                    - No other assumptions are made about entry ordering.
+   36.             
+   37.               Symmetric Gauss-Seidel notes:
+   38.               - We use the input vector x as the RHS and start with an initial guess for y of all zeros.
+   39.               - We perform one forward sweep.  x should be initially zero on the first GS sweep, but we do not attempt to exploit this fact.
+   40.               - We then perform one back sweep.
+   41.               - For simplicity we include the diagonal contribution in the for-j loop, then correct the sum after
+   42.             
+   43.               @param[in] A the known system matrix
+   44.               @param[in] r the input vector
+   45.               @param[inout] x On entry, x should contain relevant values, on exit x contains the result of one symmetric GS sweep with r as the RHS.
+   46.             
+   47.             
+   48.               @warning Early versions of this kernel (Version 1.1 and earlier) had the r and x arguments in reverse order, and out of sync with other kernels.
+   49.             
+   50.               @return returns 0 upon success and non-zero otherwise
+   51.             
+   52.               @see ComputeSYMGS
+   53.             */
+   54.             int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
+   55.             
+   56.               assert(x.localLength==A.localNumberOfColumns); // Make sure x contain space for halo values
+   57.             
+   58.             #ifndef HPCG_NO_MPI
+   59.  +            ExchangeHalo(A,x);
+   60.             #endif
+   61.             
+   62.               const local_int_t nrow = A.localNumberOfRows;
+   63.               double ** matrixDiagonal = A.matrixDiagonal;  // An array of pointers to the diagonal entries A.matrixValues
+   64.             //  const double * const rv = r.values;
+   65.               double * rv = r.values;
+   66.               double * const xv = x.values;
+   67.             
+   68.  + 1------<   for (local_int_t i=0; i< nrow; i++) {
+   69.    1            const double * const currentValues = A.matrixValues[i];
+   70.    1            const local_int_t * const currentColIndices = A.mtxIndL[i];
+   71.    1            const int currentNumberOfNonzeros = A.nonzerosInRow[i];
+   72.    1            const double  currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
+   73.    1            double sum = rv[i]; // RHS value
+   74.    1        
+   75.    1        #pragma unroll(3)
+   76.    1 Vr3--<     for (int j=0; j< currentNumberOfNonzeros; j++) {
+   77.    1 Vr3          sum -= currentValues[j] * xv[currentColIndices[j]];
+   78.    1 Vr3-->     }
+   79.    1            sum += xv[i]*currentDiagonal; // Remove diagonal contribution from previous loop
+   80.    1        
+   81.    1            xv[i] = sum/currentDiagonal;
+   82.    1        
+   83.    1------>   }
+   84.             
+   85.               // Now the back sweep.
+   86.  + 1------<   for (local_int_t i=nrow-1; i>=0; i--) {
+   87.    1            const double * const currentValues = A.matrixValues[i];
+   88.    1            const local_int_t * const currentColIndices = A.mtxIndL[i];
+   89.    1            const int currentNumberOfNonzeros = A.nonzerosInRow[i];
+   90.    1            const double  currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
+   91.    1            double sum = rv[i]; // RHS value
+   92.    1        //printf("i = %d\n\n",i);fflush(stdout);
+   93.    1        //printf("SYGMS: nnz = %d\n",currentNumberOfNonzeros);fflush(stdout);
+   94.    1        //#pragma prefervector
+   95.    1        #pragma unroll(3)
+   96.    1 Vr3--<     for (int j = 0; j< currentNumberOfNonzeros; j++) {
+   97.    1 Vr3    //      local_int_t curCol = currentColIndices[j];
+   98.    1 Vr3    //printf("SYMGS: curcol = %d\n",currentColIndices[j]);fflush(stdout);
+   99.    1 Vr3    //      sum -= currentValues[j]*xv[curCol];
+  100.    1 Vr3          sum -= currentValues[j]*xv[currentColIndices[j]];
+  101.    1 Vr3-->     }
+  102.    1            sum += xv[i]*currentDiagonal; // Remove diagonal contribution from previous loop
+  103.    1        
+  104.    1            xv[i] = sum/currentDiagonal;
+  105.    1        
+  106.    1------>   }
+  107.             
+  108.               return 0;
+  109.             }
+  110.             
+
+CC-3021 CC: IPA ComputeSYMGS_ref, File = ComputeSYMGS_ref.cpp, Line = 59, Column = 3 
+  "ExchangeHalo" was not inlined because the compiler was unable to locate the routine.
+
+CC-6291 CC: VECTOR ComputeSYMGS_ref, File = ComputeSYMGS_ref.cpp, Line = 68 
+  A loop was not vectorized because a recurrence was found between "A" at line 71 and "xv" at line 81.
+
+CC-6005 CC: SCALAR ComputeSYMGS_ref, File = ComputeSYMGS_ref.cpp, Line = 76 
+  A loop was unrolled 3 times.
+
+CC-6204 CC: VECTOR ComputeSYMGS_ref, File = ComputeSYMGS_ref.cpp, Line = 76 
+  A loop was vectorized.
+
+CC-6291 CC: VECTOR ComputeSYMGS_ref, File = ComputeSYMGS_ref.cpp, Line = 86 
+  A loop was not vectorized because a recurrence was found between "A" at line 89 and "xv" at line 104.
+
+CC-6005 CC: SCALAR ComputeSYMGS_ref, File = ComputeSYMGS_ref.cpp, Line = 96 
+  A loop was unrolled 3 times.
+
+CC-6204 CC: VECTOR ComputeSYMGS_ref, File = ComputeSYMGS_ref.cpp, Line = 96 
+  A loop was vectorized.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

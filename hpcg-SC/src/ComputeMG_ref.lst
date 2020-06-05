@@ -1,0 +1,177 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/ComputeMG_ref.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c -o src/ComputeMG_ref.o src/ComputeMG_ref.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/ComputeMG_ref.cpp
+Date     : 06/04/2020  19:33:20
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.               
+    2.               //@HEADER
+    3.               // ***************************************************
+    4.               //
+    5.               // HPCG: High Performance Conjugate Gradient Benchmark
+    6.               //
+    7.               // Contact:
+    8.               // Michael A. Heroux ( maherou@sandia.gov)
+    9.               // Jack Dongarra     (dongarra@eecs.utk.edu)
+   10.               // Piotr Luszczek    (luszczek@eecs.utk.edu)
+   11.               //
+   12.               // ***************************************************
+   13.               //@HEADER
+   14.               
+   15.               /*!
+   16.                @file ComputeSYMGS_ref.cpp
+   17.               
+   18.                HPCG routine
+   19.                */
+   20.               
+   21.               #include "ComputeMG_ref.hpp"
+   22.               #include "ComputeSYMGS_ref.hpp"
+   23.               #include "ComputeSPMV_ref.hpp"
+   24.               #include "ComputeRestriction_ref.hpp"
+   25.               #include "ComputeProlongation_ref.hpp"
+   26.               #include <cassert>
+   27.               #include <iostream>
+   28.               
+   29.               /*!
+   30.               
+   31.                 @param[in] A the known system matrix
+   32.                 @param[in] r the input vector
+   33.                 @param[inout] x On exit contains the result of the multigrid V-cycle with r as the RHS, x is the approximation to Ax = r.
+   34.               
+   35.                 @return returns 0 upon success and non-zero otherwise
+   36.               
+   37.                 @see ComputeMG
+   38.               */
+   39.               int ComputeMG_ref(const SparseMatrix & A, const Vector & r, Vector & x) {
+   40.                 assert(x.localLength==A.localNumberOfColumns); // Make sure x contain space for halo values
+   41.               
+   42.    Vr4 I---<>   ZeroVector(x); // initialize x to zero
+   43.               
+   44.                 int ierr = 0;
+   45.                 if (A.mgData!=0) { // Go to next coarse level if defined
+   46.                   int numberOfPresmootherSteps = A.mgData->numberOfPresmootherSteps;
+   47.  + 1-------<>     for (int i=0; i< numberOfPresmootherSteps; ++i) ierr += ComputeSYMGS_ref(A, r, x);
+   48.                   if (ierr!=0) return ierr;
+   49.  +                ierr = ComputeSPMV_ref(A, x, *A.mgData->Axf); if (ierr!=0) return ierr;
+   50.                   // Perform restriction operation using simple injection
+   51.  +                ierr = ComputeRestriction_ref(A, r);  if (ierr!=0) return ierr;
+   52.  +                ierr = ComputeMG_ref(*A.Ac,*A.mgData->rc, *A.mgData->xc);  if (ierr!=0) return ierr;
+   53.  +                ierr = ComputeProlongation_ref(A, x);  if (ierr!=0) return ierr;
+   54.                   int numberOfPostsmootherSteps = A.mgData->numberOfPostsmootherSteps;
+   55.  + 1-------<>     for (int i=0; i< numberOfPostsmootherSteps; ++i) ierr += ComputeSYMGS_ref(A, r, x);
+   56.                   if (ierr!=0) return ierr;
+   57.                 }
+   58.                 else {
+   59.  +                ierr = ComputeSYMGS_ref(A, r, x);
+   60.                   if (ierr!=0) return ierr;
+   61.                 }
+   62.                 return 0;
+   63.               }
+   64.               
+
+CC-3021 CC: IPA __sti___254f74d9_ebb44c3e, File = iostream, Line = 74, Column = 25 
+  "Init" was not inlined because the compiler was unable to locate the routine.
+
+CC-6005 CC: SCALAR ComputeMG_ref, File = ComputeMG_ref.cpp, Line = 42 
+  A loop was unrolled 4 times.
+
+CC-6204 CC: VECTOR ComputeMG_ref, File = ComputeMG_ref.cpp, Line = 42 
+  A loop was vectorized.
+
+CC-3001 CC: IPA ComputeMG_ref, File = ComputeMG_ref.cpp, Line = 42, Column = 3 
+  Tiny leaf routine "ZeroVector"(/cray/css/users/smehta/hpcg-orig/src/ComputeMG_ref.cpp:57) was textually inlined.
+
+CC-6287 CC: VECTOR ComputeMG_ref, File = ComputeMG_ref.cpp, Line = 47 
+  A loop was not vectorized because it contains a call to function "ComputeSYMGS_ref" on line 47.
+
+CC-3021 CC: IPA ComputeMG_ref, File = ComputeMG_ref.cpp, Line = 47, Column = 53 
+  "ComputeSYMGS_ref" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA ComputeMG_ref, File = ComputeMG_ref.cpp, Line = 49, Column = 5 
+  "ComputeSPMV_ref" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA ComputeMG_ref, File = ComputeMG_ref.cpp, Line = 51, Column = 5 
+  "ComputeRestriction_ref" was not inlined because the compiler was unable to locate the routine.
+
+CC-3039 CC: IPA ComputeMG_ref, File = ComputeMG_ref.cpp, Line = 52, Column = 5 
+  "ComputeMG_ref"(/cray/css/users/smehta/hpcg-orig/src/ComputeMG_ref.cpp:39) was not inlined because there is a recursive call.
+
+CC-3021 CC: IPA ComputeMG_ref, File = ComputeMG_ref.cpp, Line = 53, Column = 5 
+  "ComputeProlongation_ref" was not inlined because the compiler was unable to locate the routine.
+
+CC-6287 CC: VECTOR ComputeMG_ref, File = ComputeMG_ref.cpp, Line = 55 
+  A loop was not vectorized because it contains a call to function "ComputeSYMGS_ref" on line 55.
+
+CC-3021 CC: IPA ComputeMG_ref, File = ComputeMG_ref.cpp, Line = 55, Column = 54 
+  "ComputeSYMGS_ref" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA ComputeMG_ref, File = ComputeMG_ref.cpp, Line = 59, Column = 5 
+  "ComputeSYMGS_ref" was not inlined because the compiler was unable to locate the routine.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

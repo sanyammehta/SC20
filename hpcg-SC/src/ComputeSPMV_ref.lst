@@ -1,0 +1,166 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/ComputeSPMV_ref.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c -o src/ComputeSPMV_ref.o src/ComputeSPMV_ref.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/ComputeSPMV_ref.cpp
+Date     : 06/04/2020  19:33:19
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.              
+    2.              //@HEADER
+    3.              // ***************************************************
+    4.              //
+    5.              // HPCG: High Performance Conjugate Gradient Benchmark
+    6.              //
+    7.              // Contact:
+    8.              // Michael A. Heroux ( maherou@sandia.gov)
+    9.              // Jack Dongarra     (dongarra@eecs.utk.edu)
+   10.              // Piotr Luszczek    (luszczek@eecs.utk.edu)
+   11.              //
+   12.              // ***************************************************
+   13.              //@HEADER
+   14.              
+   15.              /*!
+   16.               @file ComputeSPMV_ref.cpp
+   17.              
+   18.               HPCG routine
+   19.               */
+   20.              
+   21.              #include "ComputeSPMV_ref.hpp"
+   22.              
+   23.              #ifndef HPCG_NO_MPI
+   24.              #include "ExchangeHalo.hpp"
+   25.              #endif
+   26.              
+   27.              #ifndef HPCG_NO_OPENMP
+   28.              #include <omp.h>
+   29.              #endif
+   30.              #include <cassert>
+   31.              
+   32.              /*!
+   33.                Routine to compute matrix vector product y = Ax where:
+   34.                Precondition: First call exchange_externals to get off-processor values of x
+   35.              
+   36.                This is the reference SPMV implementation.  It CANNOT be modified for the
+   37.                purposes of this benchmark.
+   38.              
+   39.                @param[in]  A the known system matrix
+   40.                @param[in]  x the known vector
+   41.                @param[out] y the On exit contains the result: Ax.
+   42.              
+   43.                @return returns 0 upon success and non-zero otherwise
+   44.              
+   45.                @see ComputeSPMV
+   46.              */
+   47.              int ComputeSPMV_ref( const SparseMatrix & A, Vector & x, Vector & y) {
+   48.              
+   49.                assert(x.localLength>=A.localNumberOfColumns); // Test vector lengths
+   50.                assert(y.localLength>=A.localNumberOfRows);
+   51.              
+   52.              #ifndef HPCG_NO_MPI
+   53.  +               ExchangeHalo(A,x);
+   54.              #endif
+   55.                const double * const xv = x.values;
+   56.                double * const yv = y.values;
+   57.                const local_int_t nrow = A.localNumberOfRows;
+   58.              #ifndef HPCG_NO_OPENMP
+   59.                #pragma omp parallel for
+   60.              #endif
+   61.  + Mm------<   for (local_int_t i=0; i< nrow; i++)  {
+   62.    Mm            double sum = 0.0;
+   63.    Mm            const double * const cur_vals = A.matrixValues[i];
+   64.    Mm            const local_int_t * const cur_inds = A.mtxIndL[i];
+   65.    Mm            const int cur_nnz = A.nonzerosInRow[i];
+   66.    Mm        
+   67.    Mm        #pragma unroll(3)
+   68.    Mm Vr3--<     for (int j=0; j< cur_nnz; j++) {
+   69.    Mm Vr3          sum += cur_vals[j]*xv[cur_inds[j]];
+   70.    Mm Vr3-->     }
+   71.    Mm            yv[i] = sum;
+   72.    Mm------>   }
+   73.                return 0;
+   74.              }
+
+CC-3021 CC: IPA ComputeSPMV_ref, File = ComputeSPMV_ref.cpp, Line = 53, Column = 5 
+  "ExchangeHalo" was not inlined because the compiler was unable to locate the routine.
+
+CC-6291 CC: VECTOR ComputeSPMV_ref, File = ComputeSPMV_ref.cpp, Line = 61 
+  A loop was not vectorized because a recurrence was found between "A" at line 65 and "yv" at line 71.
+
+CC-6823 CC: THREAD ComputeSPMV_ref, File = ComputeSPMV_ref.cpp, Line = 61 
+  A region starting at line 61 and ending at line 72 was multi-threaded.
+
+CC-6817 CC: THREAD ComputeSPMV_ref, File = ComputeSPMV_ref.cpp, Line = 61 
+  A loop was partitioned.
+
+CC-6005 CC: SCALAR ComputeSPMV_ref, File = ComputeSPMV_ref.cpp, Line = 68 
+  A loop was unrolled 3 times.
+
+CC-6204 CC: VECTOR ComputeSPMV_ref, File = ComputeSPMV_ref.cpp, Line = 68 
+  A loop was vectorized.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

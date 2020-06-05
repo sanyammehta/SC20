@@ -1,0 +1,296 @@
+
+ComputeSPMV_ref.o:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000000000 <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3_>:
+   0:	55                   	push   %rbp
+   1:	48 89 e5             	mov    %rsp,%rbp
+   4:	41 57                	push   %r15
+   6:	41 56                	push   %r14
+   8:	53                   	push   %rbx
+   9:	48 83 e4 c0          	and    $0xffffffffffffffc0,%rsp
+   d:	48 81 ec 80 00 00 00 	sub    $0x80,%rsp
+  14:	49 89 d6             	mov    %rdx,%r14
+  17:	48 89 f3             	mov    %rsi,%rbx
+  1a:	48 89 7c 24 18       	mov    %rdi,0x18(%rsp)
+  1f:	49 89 ff             	mov    %rdi,%r15
+  22:	8b 03                	mov    (%rbx),%eax
+  24:	41 3b 47 24          	cmp    0x24(%r15),%eax
+  28:	7d 1b                	jge    45 <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3_+0x45>
+  2a:	bf 00 00 00 00       	mov    $0x0,%edi
+  2f:	be 00 00 00 00       	mov    $0x0,%esi
+  34:	ba 31 00 00 00       	mov    $0x31,%edx
+  39:	b9 00 00 00 00       	mov    $0x0,%ecx
+  3e:	30 c0                	xor    %al,%al
+  40:	e8 00 00 00 00       	callq  45 <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3_+0x45>
+  45:	41 8b 06             	mov    (%r14),%eax
+  48:	48 8b 4c 24 18       	mov    0x18(%rsp),%rcx
+  4d:	3b 41 20             	cmp    0x20(%rcx),%eax
+  50:	7d 1b                	jge    6d <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3_+0x6d>
+  52:	bf 00 00 00 00       	mov    $0x0,%edi
+  57:	be 00 00 00 00       	mov    $0x0,%esi
+  5c:	ba 32 00 00 00       	mov    $0x32,%edx
+  61:	b9 00 00 00 00       	mov    $0x0,%ecx
+  66:	30 c0                	xor    %al,%al
+  68:	e8 00 00 00 00       	callq  6d <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3_+0x6d>
+  6d:	30 c0                	xor    %al,%al
+  6f:	4c 89 ff             	mov    %r15,%rdi
+  72:	48 89 de             	mov    %rbx,%rsi
+  75:	e8 00 00 00 00       	callq  7a <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3_+0x7a>
+  7a:	48 8b 43 08          	mov    0x8(%rbx),%rax
+  7e:	48 89 44 24 08       	mov    %rax,0x8(%rsp)
+  83:	49 8b 46 08          	mov    0x8(%r14),%rax
+  87:	48 89 44 24 10       	mov    %rax,0x10(%rsp)
+  8c:	48 8b 44 24 18       	mov    0x18(%rsp),%rax
+  91:	8b 40 20             	mov    0x20(%rax),%eax
+  94:	89 04 24             	mov    %eax,(%rsp)
+  97:	48 89 e1             	mov    %rsp,%rcx
+  9a:	bf 01 00 00 00       	mov    $0x1,%edi
+  9f:	be 00 00 00 00       	mov    $0x0,%esi
+  a4:	ba 00 00 00 00       	mov    $0x0,%edx
+  a9:	41 b8 02 00 00 00    	mov    $0x2,%r8d
+  af:	30 c0                	xor    %al,%al
+  b1:	e8 00 00 00 00       	callq  b6 <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3_+0xb6>
+  b6:	31 c0                	xor    %eax,%eax
+  b8:	48 89 ec             	mov    %rbp,%rsp
+  bb:	48 83 c4 e8          	add    $0xffffffffffffffe8,%rsp
+  bf:	5b                   	pop    %rbx
+  c0:	41 5e                	pop    %r14
+  c2:	41 5f                	pop    %r15
+  c4:	5d                   	pop    %rbp
+  c5:	c3                   	retq   
+  c6:	90                   	nop
+  c7:	90                   	nop
+  c8:	90                   	nop
+  c9:	90                   	nop
+  ca:	90                   	nop
+  cb:	90                   	nop
+  cc:	90                   	nop
+  cd:	90                   	nop
+  ce:	90                   	nop
+  cf:	90                   	nop
+  d0:	90                   	nop
+  d1:	90                   	nop
+  d2:	90                   	nop
+  d3:	90                   	nop
+  d4:	90                   	nop
+  d5:	90                   	nop
+  d6:	90                   	nop
+  d7:	90                   	nop
+  d8:	90                   	nop
+  d9:	90                   	nop
+  da:	90                   	nop
+  db:	90                   	nop
+  dc:	90                   	nop
+  dd:	90                   	nop
+  de:	90                   	nop
+  df:	90                   	nop
+  e0:	90                   	nop
+  e1:	90                   	nop
+  e2:	90                   	nop
+  e3:	90                   	nop
+  e4:	90                   	nop
+  e5:	90                   	nop
+  e6:	90                   	nop
+  e7:	90                   	nop
+  e8:	90                   	nop
+  e9:	90                   	nop
+  ea:	90                   	nop
+  eb:	90                   	nop
+  ec:	90                   	nop
+  ed:	90                   	nop
+  ee:	90                   	nop
+  ef:	90                   	nop
+  f0:	90                   	nop
+  f1:	90                   	nop
+  f2:	90                   	nop
+  f3:	90                   	nop
+  f4:	90                   	nop
+  f5:	90                   	nop
+  f6:	90                   	nop
+  f7:	90                   	nop
+  f8:	90                   	nop
+  f9:	90                   	nop
+  fa:	90                   	nop
+  fb:	90                   	nop
+  fc:	90                   	nop
+  fd:	90                   	nop
+  fe:	90                   	nop
+  ff:	90                   	nop
+
+0000000000000100 <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3__cray$mt$p0001>:
+ 100:	55                   	push   %rbp
+ 101:	41 57                	push   %r15
+ 103:	41 56                	push   %r14
+ 105:	41 55                	push   %r13
+ 107:	41 54                	push   %r12
+ 109:	53                   	push   %rbx
+ 10a:	64 4c 8b 14 25 00 00 	mov    %fs:0x0,%r10
+ 111:	00 00 
+ 113:	41 83 3a 00          	cmpl   $0x0,(%r10)
+ 117:	0f 8e b3 02 00 00    	jle    3d0 <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3__cray$mt$p0001+0x2d0>
+ 11d:	64 48 63 34 25 00 00 	movslq %fs:0x0,%rsi
+ 124:	00 00 
+ 126:	49 63 3a             	movslq (%r10),%rdi
+ 129:	8d 04 37             	lea    (%rdi,%rsi,1),%eax
+ 12c:	48 98                	cltq   
+ 12e:	48 83 c0 ff          	add    $0xffffffffffffffff,%rax
+ 132:	48 99                	cqto   
+ 134:	48 f7 fe             	idiv   %rsi
+ 137:	64 4c 63 0c 25 00 00 	movslq %fs:0x0,%r9
+ 13e:	00 00 
+ 140:	4c 0f af c8          	imul   %rax,%r9
+ 144:	4c 01 c8             	add    %r9,%rax
+ 147:	48 39 f8             	cmp    %rdi,%rax
+ 14a:	48 0f 4f c7          	cmovg  %rdi,%rax
+ 14e:	4c 39 c8             	cmp    %r9,%rax
+ 151:	0f 8e 79 02 00 00    	jle    3d0 <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3__cray$mt$p0001+0x2d0>
+ 157:	4c 29 c8             	sub    %r9,%rax
+ 15a:	4c 89 cd             	mov    %r9,%rbp
+ 15d:	48 c1 e5 03          	shl    $0x3,%rbp
+ 161:	49 8b 7a 10          	mov    0x10(%r10),%rdi
+ 165:	48 01 ef             	add    %rbp,%rdi
+ 168:	4d 8b 5a 18          	mov    0x18(%r10),%r11
+ 16c:	45 31 f6             	xor    %r14d,%r14d
+ 16f:	48 89 7c 24 f8       	mov    %rdi,-0x8(%rsp)
+ 174:	4c 89 4c 24 f0       	mov    %r9,-0x10(%rsp)
+ 179:	48 89 6c 24 e8       	mov    %rbp,-0x18(%rsp)
+ 17e:	66 90                	xchg   %ax,%ax
+ 180:	4b 8d 14 0e          	lea    (%r14,%r9,1),%rdx
+ 184:	49 8b 73 30          	mov    0x30(%r11),%rsi
+ 188:	4c 0f be 2c 16       	movsbq (%rsi,%rdx,1),%r13
+ 18d:	4d 85 ed             	test   %r13,%r13
+ 190:	7e 3e                	jle    1d0 <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3__cray$mt$p0001+0xd0>
+ 192:	49 8b 53 48          	mov    0x48(%r11),%rdx
+ 196:	48 01 ea             	add    %rbp,%rdx
+ 199:	4e 8b 3c f2          	mov    (%rdx,%r14,8),%r15
+ 19d:	49 8b 53 40          	mov    0x40(%r11),%rdx
+ 1a1:	48 01 ea             	add    %rbp,%rdx
+ 1a4:	4e 8b 04 f2          	mov    (%rdx,%r14,8),%r8
+ 1a8:	41 80 fd 08          	cmp    $0x8,%r13b
+ 1ac:	7d 32                	jge    1e0 <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3__cray$mt$p0001+0xe0>
+ 1ae:	c5 f8 57 c0          	vxorps %xmm0,%xmm0,%xmm0
+ 1b2:	31 f6                	xor    %esi,%esi
+ 1b4:	4c 39 ee             	cmp    %r13,%rsi
+ 1b7:	0f 8c e3 01 00 00    	jl     3a0 <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3__cray$mt$p0001+0x2a0>
+ 1bd:	e9 fb 01 00 00       	jmpq   3bd <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3__cray$mt$p0001+0x2bd>
+ 1c2:	0f 1f 40 00          	nopl   0x0(%rax)
+ 1c6:	66 2e 0f 1f 84 00 00 	nopw   %cs:0x0(%rax,%rax,1)
+ 1cd:	00 00 00 
+ 1d0:	c5 f8 57 c0          	vxorps %xmm0,%xmm0,%xmm0
+ 1d4:	e9 e4 01 00 00       	jmpq   3bd <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3__cray$mt$p0001+0x2bd>
+ 1d9:	0f 1f 80 00 00 00 00 	nopl   0x0(%rax)
+ 1e0:	4c 89 ee             	mov    %r13,%rsi
+ 1e3:	48 83 e6 f8          	and    $0xfffffffffffffff8,%rsi
+ 1e7:	48 89 f7             	mov    %rsi,%rdi
+ 1ea:	48 f7 df             	neg    %rdi
+ 1ed:	48 83 fe 30          	cmp    $0x30,%rsi
+ 1f1:	7d 1d                	jge    210 <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3__cray$mt$p0001+0x110>
+ 1f3:	62 f1 7d 48 ef c0    	vpxord %zmm0,%zmm0,%zmm0
+ 1f9:	4d 89 c4             	mov    %r8,%r12
+ 1fc:	4c 89 fb             	mov    %r15,%rbx
+ 1ff:	48 85 ff             	test   %rdi,%rdi
+ 202:	0f 89 67 01 00 00    	jns    36f <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3__cray$mt$p0001+0x26f>
+ 208:	e9 33 01 00 00       	jmpq   340 <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3__cray$mt$p0001+0x240>
+ 20d:	0f 1f 00             	nopl   (%rax)
+ 210:	4c 89 c2             	mov    %r8,%rdx
+ 213:	48 83 c2 20          	add    $0x20,%rdx
+ 217:	4c 89 fd             	mov    %r15,%rbp
+ 21a:	48 83 c5 40          	add    $0x40,%rbp
+ 21e:	49 89 f1             	mov    %rsi,%r9
+ 221:	49 83 c1 d1          	add    $0xffffffffffffffd1,%r9
+ 225:	62 f1 7d 48 ef c0    	vpxord %zmm0,%zmm0,%zmm0
+ 22b:	4d 89 c4             	mov    %r8,%r12
+ 22e:	4c 89 fb             	mov    %r15,%rbx
+ 231:	0f 1f 44 00 00       	nopl   0x0(%rax,%rax,1)
+ 236:	66 2e 0f 1f 84 00 00 	nopw   %cs:0x0(%rax,%rax,1)
+ 23d:	00 00 00 
+ 240:	c4 c1 7c 10 0c 24    	vmovups (%r12),%ymm1
+ 246:	49 8b 4a 08          	mov    0x8(%r10),%rcx
+ 24a:	c5 fc 46 c8          	kxnorw %k0,%k0,%k1
+ 24e:	62 f1 6d 48 ef d2    	vpxord %zmm2,%zmm2,%zmm2
+ 254:	62 f2 fd 49 92 14 c9 	vgatherdpd (%rcx,%ymm1,8),%zmm2{%k1}
+ 25b:	c5 fc 10 0a          	vmovups (%rdx),%ymm1
+ 25f:	c5 fc 10 5a 20       	vmovups 0x20(%rdx),%ymm3
+ 264:	c5 fc 10 62 40       	vmovups 0x40(%rdx),%ymm4
+ 269:	c5 fc 10 6a 60       	vmovups 0x60(%rdx),%ymm5
+ 26e:	c5 fc 46 c8          	kxnorw %k0,%k0,%k1
+ 272:	62 f1 4d 48 ef f6    	vpxord %zmm6,%zmm6,%zmm6
+ 278:	62 f2 fd 49 92 34 c9 	vgatherdpd (%rcx,%ymm1,8),%zmm6{%k1}
+ 27f:	62 f2 fd 48 98 13    	vfmadd132pd (%rbx),%zmm0,%zmm2
+ 285:	62 f2 cd 48 b8 55 00 	vfmadd231pd 0x0(%rbp),%zmm6,%zmm2
+ 28c:	c5 fc 46 c8          	kxnorw %k0,%k0,%k1
+ 290:	62 f1 7d 48 ef c0    	vpxord %zmm0,%zmm0,%zmm0
+ 296:	62 f2 fd 49 92 04 d9 	vgatherdpd (%rcx,%ymm3,8),%zmm0{%k1}
+ 29d:	62 f2 ed 48 98 45 01 	vfmadd132pd 0x40(%rbp),%zmm2,%zmm0
+ 2a4:	c5 fc 46 c8          	kxnorw %k0,%k0,%k1
+ 2a8:	62 f1 75 48 ef c9    	vpxord %zmm1,%zmm1,%zmm1
+ 2ae:	62 f2 fd 49 92 0c e1 	vgatherdpd (%rcx,%ymm4,8),%zmm1{%k1}
+ 2b5:	62 f2 fd 48 98 4d 02 	vfmadd132pd 0x80(%rbp),%zmm0,%zmm1
+ 2bc:	c5 fc 46 c8          	kxnorw %k0,%k0,%k1
+ 2c0:	62 f1 6d 48 ef d2    	vpxord %zmm2,%zmm2,%zmm2
+ 2c6:	62 f2 fd 49 92 14 e9 	vgatherdpd (%rcx,%ymm5,8),%zmm2{%k1}
+ 2cd:	62 f2 f5 48 98 55 03 	vfmadd132pd 0xc0(%rbp),%zmm1,%zmm2
+ 2d4:	c5 fc 10 8a 80 00 00 	vmovups 0x80(%rdx),%ymm1
+ 2db:	00 
+ 2dc:	c5 fc 46 c8          	kxnorw %k0,%k0,%k1
+ 2e0:	62 f1 7d 48 ef c0    	vpxord %zmm0,%zmm0,%zmm0
+ 2e6:	62 f2 fd 49 92 04 c9 	vgatherdpd (%rcx,%ymm1,8),%zmm0{%k1}
+ 2ed:	62 f2 ed 48 98 45 04 	vfmadd132pd 0x100(%rbp),%zmm2,%zmm0
+ 2f4:	48 89 eb             	mov    %rbp,%rbx
+ 2f7:	48 81 c3 40 01 00 00 	add    $0x140,%rbx
+ 2fe:	48 81 c5 80 01 00 00 	add    $0x180,%rbp
+ 305:	49 89 d4             	mov    %rdx,%r12
+ 308:	49 81 c4 a0 00 00 00 	add    $0xa0,%r12
+ 30f:	48 81 c2 c0 00 00 00 	add    $0xc0,%rdx
+ 316:	48 83 c7 30          	add    $0x30,%rdi
+ 31a:	49 83 c1 d0          	add    $0xffffffffffffffd0,%r9
+ 31e:	4d 85 c9             	test   %r9,%r9
+ 321:	0f 8f 19 ff ff ff    	jg     240 <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3__cray$mt$p0001+0x140>
+ 327:	4c 8b 4c 24 f0       	mov    -0x10(%rsp),%r9
+ 32c:	48 8b 6c 24 e8       	mov    -0x18(%rsp),%rbp
+ 331:	48 85 ff             	test   %rdi,%rdi
+ 334:	79 39                	jns    36f <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3__cray$mt$p0001+0x26f>
+ 336:	66 2e 0f 1f 84 00 00 	nopw   %cs:0x0(%rax,%rax,1)
+ 33d:	00 00 00 
+ 340:	49 8b 4a 08          	mov    0x8(%r10),%rcx
+ 344:	c4 c1 7c 10 0c 24    	vmovups (%r12),%ymm1
+ 34a:	c5 fc 46 c8          	kxnorw %k0,%k0,%k1
+ 34e:	62 f1 6d 48 ef d2    	vpxord %zmm2,%zmm2,%zmm2
+ 354:	62 f2 fd 49 92 14 c9 	vgatherdpd (%rcx,%ymm1,8),%zmm2{%k1}
+ 35b:	62 f2 ed 48 b8 03    	vfmadd231pd (%rbx),%zmm2,%zmm0
+ 361:	48 83 c3 40          	add    $0x40,%rbx
+ 365:	49 83 c4 20          	add    $0x20,%r12
+ 369:	48 83 c7 08          	add    $0x8,%rdi
+ 36d:	78 d1                	js     340 <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3__cray$mt$p0001+0x240>
+ 36f:	48 8b 7c 24 f8       	mov    -0x8(%rsp),%rdi
+ 374:	62 f3 fd 48 1b c1 01 	vextractf64x4 $0x1,%zmm0,%ymm1
+ 37b:	c5 f5 58 c0          	vaddpd %ymm0,%ymm1,%ymm0
+ 37f:	c4 e3 7d 19 c1 01    	vextractf128 $0x1,%ymm0,%xmm1
+ 385:	c5 f1 58 c0          	vaddpd %xmm0,%xmm1,%xmm0
+ 389:	c4 e3 79 05 c8 01    	vpermilpd $0x1,%xmm0,%xmm1
+ 38f:	c5 f3 58 c0          	vaddsd %xmm0,%xmm1,%xmm0
+ 393:	4c 39 ee             	cmp    %r13,%rsi
+ 396:	7d 25                	jge    3bd <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3__cray$mt$p0001+0x2bd>
+ 398:	0f 1f 84 00 00 00 00 	nopl   0x0(%rax,%rax,1)
+ 39f:	00 
+ 3a0:	c4 c1 7b 10 0c f7    	vmovsd (%r15,%rsi,8),%xmm1
+ 3a6:	49 63 0c b0          	movslq (%r8,%rsi,4),%rcx
+ 3aa:	49 8b 52 08          	mov    0x8(%r10),%rdx
+ 3ae:	c4 e2 f1 b9 04 ca    	vfmadd231sd (%rdx,%rcx,8),%xmm1,%xmm0
+ 3b4:	48 83 c6 01          	add    $0x1,%rsi
+ 3b8:	4c 39 ee             	cmp    %r13,%rsi
+ 3bb:	7c e3                	jl     3a0 <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3__cray$mt$p0001+0x2a0>
+ 3bd:	c4 a1 7b 11 04 f7    	vmovsd %xmm0,(%rdi,%r14,8)
+ 3c3:	49 83 c6 01          	add    $0x1,%r14
+ 3c7:	49 39 c6             	cmp    %rax,%r14
+ 3ca:	0f 8c b0 fd ff ff    	jl     180 <_Z15ComputeSPMV_refRK19SparseMatrix_STRUCTR13Vector_STRUCTS3__cray$mt$p0001+0x80>
+ 3d0:	5b                   	pop    %rbx
+ 3d1:	41 5c                	pop    %r12
+ 3d3:	41 5d                	pop    %r13
+ 3d5:	41 5e                	pop    %r14
+ 3d7:	41 5f                	pop    %r15
+ 3d9:	5d                   	pop    %rbp
+ 3da:	c3                   	retq   

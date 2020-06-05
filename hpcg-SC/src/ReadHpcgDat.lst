@@ -1,0 +1,208 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/ReadHpcgDat.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c -o src/ReadHpcgDat.o src/ReadHpcgDat.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/ReadHpcgDat.cpp
+Date     : 06/04/2020  19:33:19
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.             
+    2.             //@HEADER
+    3.             // ***************************************************
+    4.             //
+    5.             // HPCG: High Performance Conjugate Gradient Benchmark
+    6.             //
+    7.             // Contact:
+    8.             // Michael A. Heroux ( maherou@sandia.gov)
+    9.             // Jack Dongarra     (dongarra@eecs.utk.edu)
+   10.             // Piotr Luszczek    (luszczek@eecs.utk.edu)
+   11.             //
+   12.             // ***************************************************
+   13.             //@HEADER
+   14.             
+   15.             #include <cstdio>
+   16.             
+   17.             #include "ReadHpcgDat.hpp"
+   18.             
+   19.             static int
+   20.             SkipUntilEol(FILE *stream) {
+   21.               int chOrEof;
+   22.               bool finished;
+   23.             
+   24.  + 1------<   do {
+   25.  + 1            chOrEof = fgetc( stream );
+   26.    1            finished = (chOrEof == EOF) || (chOrEof == '\n') || (chOrEof == '\r');
+   27.    1------>   } while (! finished);
+   28.             
+   29.               if ('\r' == chOrEof) { // on Windows, \r might be followed by \n
+   30.  +              int chOrEofExtra = fgetc( stream );
+   31.             
+   32.                 if ('\n' == chOrEofExtra || EOF == chOrEofExtra)
+   33.                   chOrEof = chOrEofExtra;
+   34.                 else
+   35.  +                ungetc(chOrEofExtra, stream);
+   36.               }
+   37.             
+   38.               return chOrEof;
+   39.             }
+   40.             
+   41.             int
+   42.             ReadHpcgDat(int *localDimensions, int *secondsPerRun, int *localProcDimensions) {
+   43.  +            FILE * hpcgStream = fopen("hpcg.dat", "r");
+   44.             
+   45.               if (! hpcgStream)
+   46.                 return -1;
+   47.             
+   48.  + Ip         SkipUntilEol(hpcgStream); // skip the first line
+   49.             
+   50.  + Ip         SkipUntilEol(hpcgStream); // skip the second line
+   51.             
+   52.  + 1------<   for (int i = 0; i < 3; ++i)
+   53.  + 1            if (fscanf(hpcgStream, "%d", localDimensions+i) != 1 || localDimensions[i] < 16)
+   54.    1------>       localDimensions[i] = 16;
+   55.             
+   56.  + Ip         SkipUntilEol( hpcgStream ); // skip the rest of the second line
+   57.             
+   58.               if (secondsPerRun!=0) { // Only read number of seconds if the pointer is non-zero
+   59.  +              if (fscanf(hpcgStream, "%d", secondsPerRun) != 1 || secondsPerRun[0] < 0)
+   60.                   secondsPerRun[0] = 30 * 60; // 30 minutes
+   61.               }
+   62.             
+   63.  + Ip         SkipUntilEol( hpcgStream ); // skip the rest of the third line
+   64.             
+   65.  + 1------<   for (int i = 0; i < 3; ++i)
+   66.    1            // the user didn't specify (or values are invalid) process dimensions
+   67.  + 1            if (fscanf(hpcgStream, "%d", localProcDimensions+i) != 1 || localProcDimensions[i] < 1)
+   68.    1------>       localProcDimensions[i] = 0; // value 0 means: "not specified" and it will be fixed later
+   69.             
+   70.  +            fclose(hpcgStream);
+   71.             
+   72.               return 0;
+   73.             }
+
+CC-6287 CC: VECTOR SkipUntilEol, File = ReadHpcgDat.cpp, Line = 24 
+  A loop was not vectorized because it contains a call to function "fgetc" on line 25.
+
+CC-3021 CC: IPA SkipUntilEol, File = ReadHpcgDat.cpp, Line = 25, Column = 5 
+  "fgetc" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA SkipUntilEol, File = ReadHpcgDat.cpp, Line = 30, Column = 22 
+  "fgetc" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA SkipUntilEol, File = ReadHpcgDat.cpp, Line = 35, Column = 7 
+  "ungetc" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA ReadHpcgDat, File = ReadHpcgDat.cpp, Line = 43, Column = 21 
+  "fopen" was not inlined because the compiler was unable to locate the routine.
+
+CC-6287 CC: VECTOR ReadHpcgDat, File = ReadHpcgDat.cpp, Line = 48 
+  A loop was not vectorized because it contains a call to function "fgetc" on line 48.
+
+CC-3001 CC: IPA ReadHpcgDat, File = ReadHpcgDat.cpp, Line = 48, Column = 3 
+  Tiny routine "SkipUntilEol"(/cray/css/users/smehta/hpcg-orig/src/ReadHpcgDat.cpp:20) was textually inlined.  NOT INLINED:  fgetc
+  : fgetc : ungetc.
+
+CC-6287 CC: VECTOR ReadHpcgDat, File = ReadHpcgDat.cpp, Line = 50 
+  A loop was not vectorized because it contains a call to function "fgetc" on line 50.
+
+CC-3001 CC: IPA ReadHpcgDat, File = ReadHpcgDat.cpp, Line = 50, Column = 3 
+  Tiny routine "SkipUntilEol"(/cray/css/users/smehta/hpcg-orig/src/ReadHpcgDat.cpp:20) was textually inlined.  NOT INLINED:  fgetc
+  : fgetc : ungetc.
+
+CC-6287 CC: VECTOR ReadHpcgDat, File = ReadHpcgDat.cpp, Line = 52 
+  A loop was not vectorized because it contains a call to function "fscanf" on line 53.
+
+CC-3021 CC: IPA ReadHpcgDat, File = ReadHpcgDat.cpp, Line = 53, Column = 5 
+  "fscanf" was not inlined because the compiler was unable to locate the routine.
+
+CC-6287 CC: VECTOR ReadHpcgDat, File = ReadHpcgDat.cpp, Line = 56 
+  A loop was not vectorized because it contains a call to function "fgetc" on line 56.
+
+CC-3001 CC: IPA ReadHpcgDat, File = ReadHpcgDat.cpp, Line = 56, Column = 3 
+  Tiny routine "SkipUntilEol"(/cray/css/users/smehta/hpcg-orig/src/ReadHpcgDat.cpp:20) was textually inlined.  NOT INLINED:  fgetc
+  : fgetc : ungetc.
+
+CC-3021 CC: IPA ReadHpcgDat, File = ReadHpcgDat.cpp, Line = 59, Column = 5 
+  "fscanf" was not inlined because the compiler was unable to locate the routine.
+
+CC-6287 CC: VECTOR ReadHpcgDat, File = ReadHpcgDat.cpp, Line = 63 
+  A loop was not vectorized because it contains a call to function "fgetc" on line 63.
+
+CC-3001 CC: IPA ReadHpcgDat, File = ReadHpcgDat.cpp, Line = 63, Column = 3 
+  Tiny routine "SkipUntilEol"(/cray/css/users/smehta/hpcg-orig/src/ReadHpcgDat.cpp:20) was textually inlined.  NOT INLINED:  fgetc
+  : fgetc : ungetc.
+
+CC-6287 CC: VECTOR ReadHpcgDat, File = ReadHpcgDat.cpp, Line = 65 
+  A loop was not vectorized because it contains a call to function "fscanf" on line 67.
+
+CC-3021 CC: IPA ReadHpcgDat, File = ReadHpcgDat.cpp, Line = 67, Column = 5 
+  "fscanf" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA ReadHpcgDat, File = ReadHpcgDat.cpp, Line = 70, Column = 3 
+  "fclose" was not inlined because the compiler was unable to locate the routine.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

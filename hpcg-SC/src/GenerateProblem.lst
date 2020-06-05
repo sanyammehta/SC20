@@ -1,0 +1,129 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/GenerateProblem.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c -o src/GenerateProblem.o src/GenerateProblem.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/GenerateProblem.cpp
+Date     : 06/04/2020  19:33:19
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.          
+    2.          //@HEADER
+    3.          // ***************************************************
+    4.          //
+    5.          // HPCG: High Performance Conjugate Gradient Benchmark
+    6.          //
+    7.          // Contact:
+    8.          // Michael A. Heroux ( maherou@sandia.gov)
+    9.          // Jack Dongarra     (dongarra@eecs.utk.edu)
+   10.          // Piotr Luszczek    (luszczek@eecs.utk.edu)
+   11.          //
+   12.          // ***************************************************
+   13.          //@HEADER
+   14.          
+   15.          /*!
+   16.           @file GenerateProblem.cpp
+   17.          
+   18.           HPCG routine
+   19.           */
+   20.          
+   21.          #ifndef HPCG_NO_MPI
+   22.          #include <mpi.h>
+   23.          #endif
+   24.          
+   25.          #ifndef HPCG_NO_OPENMP
+   26.          #include <omp.h>
+   27.          #endif
+   28.          
+   29.          #include "GenerateProblem.hpp"
+   30.          #include "GenerateProblem_ref.hpp"
+   31.          
+   32.          
+   33.          /*!
+   34.            Routine to generate a sparse matrix, right hand side, initial guess, and exact solution.
+   35.          
+   36.            @param[in]  A        The generated system matrix
+   37.            @param[inout] b      The newly allocated and generated right hand side vector (if b!=0 on entry)
+   38.            @param[inout] x      The newly allocated solution vector with entries set to 0.0 (if x!=0 on entry)
+   39.            @param[inout] xexact The newly allocated solution vector with entries set to the exact solution (if the xexact!=0 non-zero on entry)
+   40.          
+   41.            @see GenerateGeometry
+   42.          */
+   43.          
+   44.          void GenerateProblem(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact) {
+   45.          
+   46.            // The call to this reference version of GenerateProblem can be replaced with custom code.
+   47.            // However, the data structures must remain unchanged such that the CheckProblem function is satisfied.
+   48.            // Furthermore, any code must work for general unstructured sparse matrices.  Special knowledge about the
+   49.            // specific nature of the sparsity pattern may not be explicitly used.
+   50.          
+   51.  +         return(GenerateProblem_ref(A, b, x, xexact));
+   52.          }
+
+CC-3021 CC: IPA GenerateProblem, File = GenerateProblem.cpp, Line = 51, Column = 3 
+  "GenerateProblem_ref" was not inlined because the compiler was unable to locate the routine.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

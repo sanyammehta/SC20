@@ -1,0 +1,720 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c -o src/SetupHalo_ref.o src/SetupHalo_ref.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp
+Date     : 06/04/2020  19:33:23
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.                   
+    2.                   //@HEADER
+    3.                   // ***************************************************
+    4.                   //
+    5.                   // HPCG: High Performance Conjugate Gradient Benchmark
+    6.                   //
+    7.                   // Contact:
+    8.                   // Michael A. Heroux ( maherou@sandia.gov)
+    9.                   // Jack Dongarra     (dongarra@eecs.utk.edu)
+   10.                   // Piotr Luszczek    (luszczek@eecs.utk.edu)
+   11.                   //
+   12.                   // ***************************************************
+   13.                   //@HEADER
+   14.                   
+   15.                   /*!
+   16.                    @file SetupHalo_ref.cpp
+   17.                   
+   18.                    HPCG routine
+   19.                    */
+   20.                   
+   21.                   #ifndef HPCG_NO_MPI
+   22.                   #include <mpi.h>
+   23.                   #include <map>
+   24.                   #include <set>
+   25.                   #endif
+   26.                   
+   27.                   #ifndef HPCG_NO_OPENMP
+   28.                   #include <omp.h>
+   29.                   #endif
+   30.                   
+   31.                   #ifdef HPCG_DETAILED_DEBUG
+   32.                   #include <fstream>
+   33.                   using std::endl;
+   34.                   #include "hpcg.hpp"
+   35.                   #include <cassert>
+   36.                   #endif
+   37.                   
+   38.                   #include "SetupHalo_ref.hpp"
+   39.                   #include "mytimer.hpp"
+   40.                   
+   41.                   /*!
+   42.                     Reference version of SetupHalo that prepares system matrix data structure and creates data necessary
+   43.                     for communication of boundary values of this process.
+   44.                   
+   45.                     @param[inout] A    The known system matrix
+   46.                   
+   47.                     @see ExchangeHalo
+   48.                   */
+   49.                   void SetupHalo_ref(SparseMatrix & A) {
+   50.                   
+   51.                     // Extract Matrix pieces
+   52.                   
+   53.                     local_int_t localNumberOfRows = A.localNumberOfRows;
+   54.                     char  * nonzerosInRow = A.nonzerosInRow;
+   55.                     global_int_t ** mtxIndG = A.mtxIndG;
+   56.                     local_int_t ** mtxIndL = A.mtxIndL;
+   57.                   
+   58.                   #ifdef HPCG_NO_MPI  // In the non-MPI case we simply copy global indices to local index storage
+   59.                   #ifndef HPCG_NO_OPENMP
+   60.                     #pragma omp parallel for
+   61.                   #endif
+   62.                     for (local_int_t i=0; i< localNumberOfRows; i++) {
+   63.                       int cur_nnz = nonzerosInRow[i];
+   64.                       for (int j=0; j<cur_nnz; j++) mtxIndL[i][j] = mtxIndG[i][j];
+   65.                     }
+   66.                   
+   67.                   #else // Run this section if compiling for MPI
+   68.                   
+   69.                     // Scan global IDs of the nonzeros in the matrix.  Determine if the column ID matches a row ID.  If not:
+   70.                     // 1) We call the ComputeRankOfMatrixRow function, which tells us the rank of the processor owning the row ID.
+   71.                     //  We need to receive this value of the x vector during the halo exchange.
+   72.                     // 2) We record our row ID since we know that the other processor will need this value from us, due to symmetry.
+   73.                   
+   74.    Ip               std::map< int, std::set< global_int_t> > sendList, receiveList;
+   75.                     typedef std::map< int, std::set< global_int_t> >::iterator map_iter;
+   76.                     typedef std::set<global_int_t>::iterator set_iter;
+   77.    Ip               std::map< local_int_t, local_int_t > externalToLocalMap;
+   78.                   
+   79.                     // TODO: With proper critical and atomic regions, this loop could be threaded, but not attempting it at this time
+   80.  + 1------------<   for (local_int_t i=0; i< localNumberOfRows; i++) {
+   81.    1 I                global_int_t currentGlobalRow = A.localToGlobalMap[i];
+   82.  + 1 2----------<     for (int j=0; j<nonzerosInRow[i]; j++) {
+   83.    1 2                  global_int_t curIndex = mtxIndG[i][j];
+   84.  + 1 2 I                int rankIdOfColumnEntry = ComputeRankOfMatrixRow(*(A.geom), curIndex);
+   85.    1 2            #ifdef HPCG_DETAILED_DEBUG
+   86.    1 2                  HPCG_fout << "rank, row , col, globalToLocalMap[col] = " << A.geom->rank << " " << currentGlobalRow << " "
+   87.    1 2                      << curIndex << " " << A.globalToLocalMap[curIndex] << endl;
+   88.    1 2            #endif
+   89.    1 2                  if (A.geom->rank!=rankIdOfColumnEntry) {// If column index is not a row index, then it comes from another processor
+   90.  + 1 2                    receiveList[rankIdOfColumnEntry].insert(curIndex);
+   91.  + 1 2                    sendList[rankIdOfColumnEntry].insert(currentGlobalRow); // Matrix symmetry means we know the neighbor process wants my value
+   92.    1 2                  }
+   93.    1 2---------->     }
+   94.    1------------>   }
+   95.                   
+   96.                     // Count number of matrix entries to send and receive
+   97.                     local_int_t totalToBeSent = 0;
+   98.  + F I----------<   for (map_iter curNeighbor = sendList.begin(); curNeighbor != sendList.end(); ++curNeighbor) {
+   99.    F I                totalToBeSent += (curNeighbor->second).size();
+  100.    F------------>   }
+  101.                     local_int_t totalToBeReceived = 0;
+  102.  + F I----------<   for (map_iter curNeighbor = receiveList.begin(); curNeighbor != receiveList.end(); ++curNeighbor) {
+  103.    F I                totalToBeReceived += (curNeighbor->second).size();
+  104.    F------------>   }
+  105.                   
+  106.                   #ifdef HPCG_DETAILED_DEBUG
+  107.                     // These are all attributes that should be true, due to symmetry
+  108.                     HPCG_fout << "totalToBeSent = " << totalToBeSent << " totalToBeReceived = " << totalToBeReceived << endl;
+  109.                     assert(totalToBeSent==totalToBeReceived); // Number of sent entry should equal number of received
+  110.                     assert(sendList.size()==receiveList.size()); // Number of send-to neighbors should equal number of receive-from
+  111.                     // Each receive-from neighbor should be a send-to neighbor, and send the same number of entries
+  112.                     for (map_iter curNeighbor = receiveList.begin(); curNeighbor != receiveList.end(); ++curNeighbor) {
+  113.                       assert(sendList.find(curNeighbor->first)!=sendList.end());
+  114.                       assert(sendList[curNeighbor->first].size()==receiveList[curNeighbor->first].size());
+  115.                     }
+  116.                   #endif
+  117.                   
+  118.                     // Build the arrays and lists needed by the ExchangeHalo function.
+  119.    Ip               double * sendBuffer = new double[totalToBeSent];
+  120.    Ip               local_int_t * elementsToSend = new local_int_t[totalToBeSent];
+  121.    Ip  I            int * neighbors = new int[sendList.size()];
+  122.    Ip  I            local_int_t * receiveLength = new local_int_t[receiveList.size()];
+  123.    Ip  I            local_int_t * sendLength = new local_int_t[sendList.size()];
+  124.                     int neighborCount = 0;
+  125.                     local_int_t receiveEntryCount = 0;
+  126.                     local_int_t sendEntryCount = 0;
+  127.  + 1 I----------<   for (map_iter curNeighbor = receiveList.begin(); curNeighbor != receiveList.end(); ++curNeighbor, ++neighborCount) {
+  128.    1 I                int neighborId = curNeighbor->first; // rank of current neighbor we are processing
+  129.    1                  neighbors[neighborCount] = neighborId; // store rank ID of current neighbor
+  130.  + 1 I                receiveLength[neighborCount] = receiveList[neighborId].size();
+  131.  + 1 I                sendLength[neighborCount] = sendList[neighborId].size(); // Get count if sends/receives
+  132.  + 1 2 I--------<     for (set_iter i = receiveList[neighborId].begin(); i != receiveList[neighborId].end(); ++i, ++receiveEntryCount) {
+  133.  + 1 2 I                externalToLocalMap[*i] = localNumberOfRows + receiveEntryCount; // The remote columns are indexed at end of internals
+  134.    1 2---------->     }
+  135.  + 1 2 I--------<     for (set_iter i = sendList[neighborId].begin(); i != sendList[neighborId].end(); ++i, ++sendEntryCount) {
+  136.    1 2                  //if (geom.rank==1) HPCG_fout << "*i, globalToLocalMap[*i], sendEntryCount = " << *i << " " << A.globalToLocalMap[*i] << " " << sendEntryCount << endl;
+  137.  + 1 2 I                elementsToSend[sendEntryCount] = A.globalToLocalMap[*i]; // store local ids of entry to send
+  138.    1 2---------->     }
+  139.    1------------>   }
+  140.                   
+  141.                     // Convert matrix indices to local IDs
+  142.                   #ifndef HPCG_NO_OPENMP
+  143.                     #pragma omp parallel for
+  144.                   #endif
+  145.  + Mm-----------<   for (local_int_t i=0; i< localNumberOfRows; i++) {
+  146.  + Mm 2---------<     for (int j=0; j<nonzerosInRow[i]; j++) {
+  147.    Mm 2                 global_int_t curIndex = mtxIndG[i][j];
+  148.  + Mm 2 I               int rankIdOfColumnEntry = ComputeRankOfMatrixRow(*(A.geom), curIndex);
+  149.    Mm 2                 if (A.geom->rank==rankIdOfColumnEntry) { // My column index, so convert to local index
+  150.  + Mm 2                   mtxIndL[i][j] = A.globalToLocalMap[curIndex];
+  151.    Mm 2                 } else { // If column index is not a row index, then it comes from another processor
+  152.  + Mm 2                   mtxIndL[i][j] = externalToLocalMap[curIndex];
+  153.    Mm 2                 }
+  154.    Mm 2--------->     }
+  155.    Mm----------->   }
+  156.                   
+  157.                     // Store contents in our matrix struct
+  158.    I                A.numberOfExternalValues = externalToLocalMap.size();
+  159.                     A.localNumberOfColumns = A.localNumberOfRows + A.numberOfExternalValues;
+  160.    I                A.numberOfSendNeighbors = sendList.size();
+  161.                     A.totalToBeSent = totalToBeSent;
+  162.                     A.elementsToSend = elementsToSend;
+  163.                     A.neighbors = neighbors;
+  164.                     A.receiveLength = receiveLength;
+  165.                     A.sendLength = sendLength;
+  166.                     A.sendBuffer = sendBuffer;
+  167.                   
+  168.                   #ifdef HPCG_DETAILED_DEBUG
+  169.                     HPCG_fout << " For rank " << A.geom->rank << " of " << A.geom->size << ", number of neighbors = " << A.numberOfSendNeighbors << endl;
+  170.                     for (int i = 0; i < A.numberOfSendNeighbors; i++) {
+  171.                       HPCG_fout << "     rank " << A.geom->rank << " neighbor " << neighbors[i] << " send/recv length = " << sendLength[i] << "/" << receiveLength[i] << endl;
+  172.                       for (local_int_t j = 0; j<sendLength[i]; ++j)
+  173.                         HPCG_fout << "       rank " << A.geom->rank << " elementsToSend[" << j << "] = " << elementsToSend[j] << endl;
+  174.                     }
+  175.                   #endif
+  176.                   
+  177.                   #endif
+  178.                   // ifdef HPCG_NO_MPI
+  179.                   
+  180.  + Ip               return;
+  181.                   }
+
+CC-3001 CC: IPA SetupHalo_ref, File = stl_pair.h, Line = 432, Column = 42 
+  Tiny routine "operator++"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:285) was textually inlined.
+
+CC-6297 CC: VECTOR lower_bound, File = stl_tree.h, Line = 1203 
+  A loop was not vectorized because a recurrence was found at line 1203.
+
+CC-6297 CC: VECTOR lower_bound, File = stl_tree.h, Line = 1203 
+  A loop was not vectorized because a recurrence was found at line 1203.
+
+CC-6287 CC: VECTOR _M_erase, File = stl_tree.h, Line = 1870 
+  A loop was not vectorized because it contains a call to function "std::_Rb_tree<int, std::pair<const int, std::set<long long,
+  std::less<long long>, std::allocator<long long>>>, std::_Select1st<std::pair<const int, std::set<long long, std::less<long long>,
+  std::allocator<long long>>>>, std::less<int>, std::allocator<std::pair<const int, std::set<long long, std::less<long long>,
+  std::allocator<long long>>>>>::_M_erase" on line 1872.
+
+CC-6287 CC: VECTOR _M_erase, File = stl_tree.h, Line = 1870 
+  A loop was not vectorized because it contains a call to function "std::_Rb_tree<long long, long long, std::_Identity<long long>,
+  std::less<long long>, std::allocator<long long>>::_M_erase" on line 1872.
+
+CC-6287 CC: VECTOR _M_erase, File = stl_tree.h, Line = 1870 
+  A loop was not vectorized because it contains a call to function "std::_Rb_tree<int, std::pair<const int, int>,
+  std::_Select1st<std::pair<const int, int>>, std::less<int>, std::allocator<std::pair<const int, int>>>::_M_erase" on line 1872.
+
+CC-6254 CC: VECTOR _M_lower_bound, File = stl_tree.h, Line = 1887 
+  A loop was not vectorized because a recurrence was found on "__x" at line 1889.
+
+CC-6254 CC: VECTOR _M_lower_bound, File = stl_tree.h, Line = 1887 
+  A loop was not vectorized because a recurrence was found on "__x" at line 1889.
+
+CC-6254 CC: VECTOR _M_get_insert_unique_pos, File = stl_tree.h, Line = 2051 
+  A loop was not vectorized because a recurrence was found on "__x" at line 2055.
+
+CC-6254 CC: VECTOR _M_get_insert_unique_pos, File = stl_tree.h, Line = 2051 
+  A loop was not vectorized because a recurrence was found on "__x" at line 2055.
+
+CC-6254 CC: VECTOR _M_get_insert_unique_pos, File = stl_tree.h, Line = 2051 
+  A loop was not vectorized because a recurrence was found on "__x" at line 2055.
+
+CC-3001 CC: IPA <unnamed>, File = stl_tree.h, Line = 2057, Column = 16 
+  Tiny leaf routine "_Alloc_node"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:557) was textually inlined.
+
+CC-3001 CC: IPA <unnamed>, File = stl_tree.h, Line = 2106, Column = 34 
+  Tiny routine "pair<iterator &, bool &, true>"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:330) was textually inlined
+  and flattened.
+
+CC-3001 CC: IPA <unnamed>, File = stl_tree.h, Line = 2106, Column = 34 
+  Tiny leaf routine "_Rb_tree_const_iterator"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:348) was textually inlined.
+
+CC-3001 CC: IPA <unnamed>, File = stl_tree.h, Line = 2414, Column = 13 
+  Tiny leaf routine "_Rb_tree_const_iterator"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:348) was textually inlined.
+
+CC-3001 CC: IPA <unnamed>, File = stl_tree.h, Line = 2414, Column = 13 
+  Tiny leaf routine "_Rb_tree_const_iterator"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:348) was textually inlined.
+
+CC-6297 CC: VECTOR operator[], File = stl_map.h, Line = 495 
+  A loop was not vectorized because a recurrence was found at line 495.
+
+CC-6297 CC: VECTOR operator[], File = stl_map.h, Line = 515 
+  A loop was not vectorized because a recurrence was found at line 515.
+
+CC-3001 CC: IPA <unnamed>, File = stl_set.h, Line = 511, Column = 48 
+  Tiny routine "_Rb_tree_impl"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:699) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-6254 CC: VECTOR ComputeRankOfMatrixRow, File = Geometry.hpp, Line = 99 
+  A loop was not vectorized because a recurrence was found on "ipartz_ids" at line 101.
+
+CC-3001 CC: IPA <unnamed>, File = Vector.hpp, Line = 83, Column = 12 
+  Tiny leaf routine "_Hash_node_base"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:219) was textually inlined.
+
+CC-3001 CC: IPA <unnamed>, File = hashtable.h, Line = 654, Column = 15 
+  Tiny routine "_Hash_node_value_base"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:230) was textually inlined.  NOT
+  INLINED:  __cxa_call_unexpected.
+
+CC-3001 CC: IPA <unnamed>, File = hashtable.h, Line = 654, Column = 15 
+  Tiny routine "_Hash_node"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:257) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-3001 CC: IPA <unnamed>, File = hashtable.h, Line = 654, Column = 15 
+  Tiny routine "pair<const key_type &>"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:364) was textually inlined and
+  flattened.
+
+CC-3001 CC: IPA <unnamed>, File = hashtable.h, Line = 654, Column = 15 
+  Tiny routine "pair<const key_type &, 0UL>"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:431) was textually inlined and
+  flattened.
+
+CC-6289 CC: VECTOR _M_find_before_node, File = hashtable.h, Line = 1561 
+  A loop was not vectorized because a recurrence was found on "__p" between lines 1569 and 1562.
+
+CC-3001 CC: IPA <unnamed>, File = hashtable.h, Line = 2110, Column = 19 
+  Tiny routine "_Node_iterator"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:341) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected.
+
+CC-6254 CC: VECTOR _M_rehash_aux, File = hashtable.h, Line = 2111 
+  A loop was not vectorized because a recurrence was found on "__bbegin_bkt" at line 2122.
+
+CC-3001 CC: IPA <unnamed>, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny routine "~_Rb_tree_impl"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:692) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected.
+
+CC-3001 CC: IPA <unnamed>, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny routine "map"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:183) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-3001 CC: IPA <unnamed>, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny routine "~map"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:300) was textually inlined.  NOT INLINED:  _M_erase :
+  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-3039 CC: IPA <unnamed>, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  "_M_erase"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:300) was not inlined because there is a recursive call.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny routine "~map"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:300) was textually inlined.  NOT INLINED:  _M_erase :
+  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-3039 CC: IPA SetupHalo_ref, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  "_M_erase"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:300) was not inlined because there is a recursive call.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny routine "~map"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:300) was textually inlined.  NOT INLINED:  _M_erase :
+  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-3039 CC: IPA SetupHalo_ref, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  "_M_erase"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:300) was not inlined because there is a recursive call.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny routine "~map"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:300) was textually inlined.  NOT INLINED:  _M_erase :
+  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-3039 CC: IPA SetupHalo_ref, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  "_M_erase"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:300) was not inlined because there is a recursive call.
+
+CC-3001 CC: IPA <unnamed>, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny routine "_Rb_tree"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:929) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-3001 CC: IPA <unnamed>, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny routine "~_Rb_tree_impl"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:692) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected.
+
+CC-3001 CC: IPA <unnamed>, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny routine "map"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:183) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-3001 CC: IPA <unnamed>, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny routine "~map"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:300) was textually inlined.  NOT INLINED:  _M_erase :
+  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-3039 CC: IPA <unnamed>, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  "_M_erase"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:300) was not inlined because there is a recursive call.
+
+CC-3001 CC: IPA <unnamed>, File = SparseMatrix.hpp, Line = 141, Column = 14 
+  Tiny routine "_Rb_tree"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:929) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 74, Column = 44 
+  Tiny routine "map"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:183) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 74, Column = 54 
+  Tiny routine "map"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:183) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 77, Column = 40 
+  Tiny routine "map"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:183) was textually inlined.  NOT INLINED: 
+  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-6287 CC: VECTOR SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 80 
+  A loop was not vectorized because it contains a call to function "std::map<int, std::set<long long, std::less<long long>,
+  std::allocator<long long>>, std::less<int>, std::allocator<std::pair<const int, std::set<long long, std::less<long long>,
+  std::allocator<long long>>>>>::operator []" on line 90.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 81, Column = 35 
+  Tiny leaf routine "operator[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:930) was textually inlined.
+
+CC-6287 CC: VECTOR SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 82 
+  A loop was not vectorized because it contains a call to function "std::map<int, std::set<long long, std::less<long long>,
+  std::allocator<long long>>, std::less<int>, std::allocator<std::pair<const int, std::set<long long, std::less<long long>,
+  std::allocator<long long>>>>>::operator []" on line 90.
+
+CC-6254 CC: VECTOR SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 84 
+  A loop was not vectorized because a recurrence was found on "ipartz_ids" at line 84.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 84, Column = 31 
+  Tiny leaf routine "ComputeRankOfMatrixRow"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:83) was textually inlined.
+
+CC-3118 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 90, Column = 9 
+  "operator[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:490) was not inlined because the call site will not flatten. 
+  "__cxa_call_unexpected" is missing.
+
+CC-3118 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 90, Column = 9 
+  "insert"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:509) was not inlined because the call site will not flatten. 
+  "_ZSt29_Rb_tree_insert_and_rebalancebPSt18_Rb_tree_node_baseS0_RS_" is missing.
+
+CC-3118 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 91, Column = 9 
+  "operator[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:490) was not inlined because the call site will not flatten. 
+  "__cxa_call_unexpected" is missing.
+
+CC-3118 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 91, Column = 9 
+  "insert"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:509) was not inlined because the call site will not flatten. 
+  "_ZSt29_Rb_tree_insert_and_rebalancebPSt18_Rb_tree_node_baseS0_RS_" is missing.
+
+CC-6287 CC: VECTOR SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 98 
+  A loop was not vectorized because it contains a call to function "std::_Rb_tree_increment" on line 432.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 98, Column = 3 
+  Tiny routine "end"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:372) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 98, Column = 3 
+  Tiny leaf routine "operator!="(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:319) was textually inlined.
+
+CC-3182 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 98, Column = 3 
+  Loop has been flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 98, Column = 3 
+  Tiny routine "end"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:372) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 98, Column = 3 
+  Tiny leaf routine "operator!="(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:319) was textually inlined.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 98, Column = 29 
+  Tiny routine "begin"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:354) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 99, Column = 5 
+  Tiny routine "operator->"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:281) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 99, Column = 5 
+  Tiny routine "size"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:419) was textually inlined and flattened.
+
+CC-6287 CC: VECTOR SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 102 
+  A loop was not vectorized because it contains a call to function "std::_Rb_tree_increment" on line 102.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 102, Column = 3 
+  Tiny routine "end"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:372) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 102, Column = 3 
+  Tiny leaf routine "operator!="(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:319) was textually inlined.
+
+CC-3182 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 102, Column = 3 
+  Loop has been flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 102, Column = 3 
+  Tiny routine "end"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:372) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 102, Column = 3 
+  Tiny leaf routine "operator!="(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:319) was textually inlined.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 102, Column = 29 
+  Tiny routine "begin"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:354) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 102, Column = 79 
+  Tiny routine "operator++"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:285) was textually inlined.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 103, Column = 5 
+  Tiny routine "operator->"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:281) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 103, Column = 5 
+  Tiny routine "size"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:419) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 119, Column = 23 
+  Tiny routine "operator new[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:2111) was textually inlined.  NOT INLINED: 
+  operator new.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 120, Column = 32 
+  Tiny routine "operator new[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:2111) was textually inlined.  NOT INLINED: 
+  operator new.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 121, Column = 19 
+  Tiny routine "size"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:468) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 121, Column = 19 
+  Tiny routine "operator new[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:2111) was textually inlined.  NOT INLINED: 
+  operator new.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 122, Column = 31 
+  Tiny routine "size"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:468) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 122, Column = 31 
+  Tiny routine "operator new[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:2111) was textually inlined.  NOT INLINED: 
+  operator new.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 123, Column = 28 
+  Tiny routine "size"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:468) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 123, Column = 28 
+  Tiny routine "operator new[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:2111) was textually inlined.  NOT INLINED: 
+  operator new.
+
+CC-6287 CC: VECTOR SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 127 
+  A loop was not vectorized because it contains a call to function "std::map<int, std::set<long long, std::less<long long>,
+  std::allocator<long long>>, std::less<int>, std::allocator<std::pair<const int, std::set<long long, std::less<long long>,
+  std::allocator<long long>>>>>::operator []" on line 130.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 127, Column = 3 
+  Tiny routine "end"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:372) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 127, Column = 3 
+  Tiny leaf routine "operator!="(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:319) was textually inlined.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 127, Column = 3 
+  Tiny routine "end"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:372) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 127, Column = 3 
+  Tiny leaf routine "operator!="(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:319) was textually inlined.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 127, Column = 29 
+  Tiny routine "begin"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:354) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 127, Column = 79 
+  Tiny routine "operator++"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:285) was textually inlined.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 128, Column = 20 
+  Tiny routine "operator->"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:281) was textually inlined and flattened.
+
+CC-3118 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 130, Column = 5 
+  "operator[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:490) was not inlined because the call site will not flatten. 
+  "__cxa_call_unexpected" is missing.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 130, Column = 5 
+  Tiny routine "size"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:419) was textually inlined and flattened.
+
+CC-3118 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 131, Column = 5 
+  "operator[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:490) was not inlined because the call site will not flatten. 
+  "__cxa_call_unexpected" is missing.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 131, Column = 5 
+  Tiny routine "size"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:419) was textually inlined and flattened.
+
+CC-6287 CC: VECTOR SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 132 
+  A loop was not vectorized because it contains a call to function "std::map<int, int, std::less<int>,
+  std::allocator<std::pair<const int, int>>>::operator []" on line 133.
+
+CC-3118 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 132, Column = 5 
+  "operator[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:490) was not inlined because the call site will not flatten. 
+  "__cxa_call_unexpected" is missing.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 132, Column = 5 
+  Tiny routine "end"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:353) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 132, Column = 5 
+  Tiny leaf routine "operator!="(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:398) was textually inlined.
+
+CC-3118 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 132, Column = 5 
+  "operator[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:490) was not inlined because the call site will not flatten. 
+  "__cxa_call_unexpected" is missing.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 132, Column = 5 
+  Tiny routine "end"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:353) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 132, Column = 5 
+  Tiny leaf routine "operator!="(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:398) was textually inlined.
+
+CC-3118 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 132, Column = 21 
+  "operator[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:490) was not inlined because the call site will not flatten. 
+  "__cxa_call_unexpected" is missing.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 132, Column = 21 
+  Tiny routine "begin"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:344) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 132, Column = 85 
+  Tiny routine "operator++"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:364) was textually inlined.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 133, Column = 7 
+  Tiny routine "operator*"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:356) was textually inlined and flattened.
+
+CC-3118 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 133, Column = 7 
+  "operator[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:510) was not inlined because the call site will not flatten. 
+  "_ZSt29_Rb_tree_insert_and_rebalancebPSt18_Rb_tree_node_baseS0_RS_" is missing.
+
+CC-6287 CC: VECTOR SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 135 
+  A loop was not vectorized because it contains a call to function "std::unordered_map<long long, int, std::hash<long long>,
+  std::equal_to<long long>, std::allocator<std::pair<const long long, int>>>::operator []" on line 137.
+
+CC-3118 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 135, Column = 5 
+  "operator[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:490) was not inlined because the call site will not flatten. 
+  "__cxa_call_unexpected" is missing.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 135, Column = 5 
+  Tiny routine "end"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:353) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 135, Column = 5 
+  Tiny leaf routine "operator!="(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:398) was textually inlined.
+
+CC-3118 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 135, Column = 5 
+  "operator[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:490) was not inlined because the call site will not flatten. 
+  "__cxa_call_unexpected" is missing.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 135, Column = 5 
+  Tiny routine "end"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:353) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 135, Column = 5 
+  Tiny leaf routine "operator!="(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:398) was textually inlined.
+
+CC-3118 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 135, Column = 21 
+  "operator[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:490) was not inlined because the call site will not flatten. 
+  "__cxa_call_unexpected" is missing.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 135, Column = 21 
+  Tiny routine "begin"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:344) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 135, Column = 79 
+  Tiny routine "operator++"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:364) was textually inlined.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 137, Column = 7 
+  Tiny routine "operator*"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:356) was textually inlined and flattened.
+
+CC-3118 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 137, Column = 7 
+  "operator[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:976) was not inlined because the call site will not flatten. 
+  "__cxa_end_catch" is missing.
+
+CC-6287 CC: VECTOR SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 145 
+  A loop was not vectorized because it contains a call to function "std::unordered_map<long long, int, std::hash<long long>,
+  std::equal_to<long long>, std::allocator<std::pair<const long long, int>>>::operator []" on line 150.
+
+CC-6823 CC: THREAD SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 145 
+  A region starting at line 145 and ending at line 155 was multi-threaded.
+
+CC-6817 CC: THREAD SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 145 
+  A loop was partitioned.
+
+CC-6287 CC: VECTOR SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 146 
+  A loop was not vectorized because it contains a call to function "std::unordered_map<long long, int, std::hash<long long>,
+  std::equal_to<long long>, std::allocator<std::pair<const long long, int>>>::operator []" on line 150.
+
+CC-6254 CC: VECTOR SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 148 
+  A loop was not vectorized because a recurrence was found on "ipartz_ids" at line 148.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 148, Column = 31 
+  Tiny leaf routine "ComputeRankOfMatrixRow"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:83) was textually inlined.
+
+CC-3118 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 150, Column = 9 
+  "operator[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:976) was not inlined because the call site will not flatten. 
+  "__cxa_end_catch" is missing.
+
+CC-3118 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 152, Column = 9 
+  "operator[]"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:510) was not inlined because the call site will not flatten. 
+  "_ZSt29_Rb_tree_insert_and_rebalancebPSt18_Rb_tree_node_baseS0_RS_" is missing.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 158, Column = 3 
+  Tiny routine "size"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:468) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 160, Column = 3 
+  Tiny routine "size"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:468) was textually inlined and flattened.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 180, Column = 3 
+  Tiny routine "~map"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:300) was textually inlined.  NOT INLINED:  _M_erase :
+  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-3039 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 180, Column = 3 
+  "_M_erase"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:300) was not inlined because there is a recursive call.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 180, Column = 3 
+  Tiny routine "~map"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:300) was textually inlined.  NOT INLINED:  _M_erase :
+  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-3039 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 180, Column = 3 
+  "_M_erase"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:300) was not inlined because there is a recursive call.
+
+CC-3001 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 180, Column = 3 
+  Tiny routine "~map"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:300) was textually inlined.  NOT INLINED:  _M_erase :
+  __cxa_call_unexpected : __cxa_call_unexpected.
+
+CC-3039 CC: IPA SetupHalo_ref, File = SetupHalo_ref.cpp, Line = 180, Column = 3 
+  "_M_erase"(/cray/css/users/smehta/hpcg-orig/src/SetupHalo_ref.cpp:300) was not inlined because there is a recursive call.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

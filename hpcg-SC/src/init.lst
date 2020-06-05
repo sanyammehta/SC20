@@ -1,0 +1,327 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/init.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c -o src/init.o src/init.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/init.cpp
+Date     : 06/04/2020  19:33:20
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.                
+    2.                //@HEADER
+    3.                // ***************************************************
+    4.                //
+    5.                // HPCG: High Performance Conjugate Gradient Benchmark
+    6.                //
+    7.                // Contact:
+    8.                // Michael A. Heroux ( maherou@sandia.gov)
+    9.                // Jack Dongarra     (dongarra@eecs.utk.edu)
+   10.                // Piotr Luszczek    (luszczek@eecs.utk.edu)
+   11.                //
+   12.                // ***************************************************
+   13.                //@HEADER
+   14.                
+   15.                #ifndef HPCG_NO_MPI
+   16.                #include <mpi.h>
+   17.                #endif
+   18.                
+   19.                #ifndef HPCG_NO_OPENMP
+   20.                #include <omp.h>
+   21.                #endif
+   22.                
+   23.                #ifdef _WIN32
+   24.                const char* NULLDEVICE="nul";
+   25.                #else
+   26.                const char* NULLDEVICE="/dev/null";
+   27.                #endif
+   28.                
+   29.                #include <ctime>
+   30.                #include <cstdio>
+   31.                #include <cstdlib>
+   32.                #include <cstring>
+   33.                
+   34.                #include <fstream>
+   35.                #include <iostream>
+   36.                
+   37.                #include "hpcg.hpp"
+   38.                
+   39.                #include "ReadHpcgDat.hpp"
+   40.                
+   41.  +             std::ofstream HPCG_fout; //!< output file stream for logging activities during HPCG run
+   42.                
+   43.                static int
+   44.                startswith(const char * s, const char * prefix) {
+   45.                  size_t n = strlen( prefix );
+   46.                  if (strncmp( s, prefix, n ))
+   47.                    return 0;
+   48.                  return 1;
+   49.                }
+   50.                
+   51.                /*!
+   52.                  Initializes an HPCG run by obtaining problem parameters (from a file or
+   53.                  command line) and then broadcasts them to all nodes. It also initializes
+   54.                  login I/O streams that are used throughout the HPCG run. Only MPI rank 0
+   55.                  performs I/O operations.
+   56.                
+   57.                  The function assumes that MPI has already been initialized for MPI runs.
+   58.                
+   59.                  @param[in] argc_p the pointer to the "argc" parameter passed to the main() function
+   60.                  @param[in] argv_p the pointer to the "argv" parameter passed to the main() function
+   61.                  @param[out] params the reference to the data structures that is filled the basic parameters of the run
+   62.                
+   63.                  @return returns 0 upon success and non-zero otherwise
+   64.                
+   65.                  @see HPCG_Finalize
+   66.                */
+   67.                int
+   68.                HPCG_Init(int * argc_p, char ** *argv_p, HPCG_Params & params) {
+   69.                  int argc = *argc_p;
+   70.                  char ** argv = *argv_p;
+   71.                  char fname[80];
+   72.                  int i, j, *iparams;
+   73.                  char cparams[][7] = {"--nx=", "--ny=", "--nz=", "--rt=", "--pz=", "--zl=", "--zu=", "--npx=", "--npy=", "--npz="};
+   74.                  time_t rawtime;
+   75.                  tm * ptm;
+   76.                  const int nparams = (sizeof cparams) / (sizeof cparams[0]);
+   77.                  bool broadcastParams = false; // Make true if parameters read from file.
+   78.                
+   79.                  iparams = (int *)malloc(sizeof(int) * nparams);
+   80.                
+   81.                  // Initialize iparams
+   82.    V--------<>   for (i = 0; i < nparams; ++i) iparams[i] = 0;
+   83.                
+   84.                  /* for sequential and some MPI implementations it's OK to read first three args */
+   85.  + 1---------<   for (i = 0; i < nparams; ++i)
+   86.  + 1--------->     if (argc <= i+1 || sscanf(argv[i+1], "%d", iparams+i) != 1 || iparams[i] < 10) iparams[i] = 0;
+   87.                
+   88.                  /* for some MPI environments, command line arguments may get complicated so we need a prefix */
+   89.  + 1---------<   for (i = 1; i <= argc && argv[i]; ++i)
+   90.  + 1 2-------<     for (j = 0; j < nparams; ++j)
+   91.    1 2 I             if (startswith(argv[i], cparams[j]))
+   92.  + 1 2                 if (sscanf(argv[i]+strlen(cparams[j]), "%d", iparams+j) != 1)
+   93.    1 2------>>           iparams[j] = 0;
+   94.                
+   95.                  // Check if --rt was specified on the command line
+   96.                  int * rt  = iparams+3;  // Assume runtime was not specified and will be read from the hpcg.dat file
+   97.                  if (! iparams[3]) rt = 0; // If --rt was specified, we already have the runtime, so don't read it from file
+   98.                  if (! iparams[0] && ! iparams[1] && ! iparams[2]) { /* no geometry arguments on the command line */
+   99.  +                 ReadHpcgDat(iparams, rt, iparams+7);
+  100.                    broadcastParams = true;
+  101.                  }
+  102.                
+  103.                //  int world_size;
+  104.                //  MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+  105.                //
+  106.                //  int world_rank;
+  107.                //  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  108.                //
+  109.                //  printf("rank %d in %d processes, rt = %d\n",world_rank,world_size,*rt);fflush(stdout);
+  110.                
+  111.                  // Check for small or unspecified nx, ny, nz values
+  112.                  // If any dimension is less than 16, make it the max over the other two dimensions, or 16, whichever is largest
+  113.  + w---------<   for (i = 0; i < 3; ++i) {
+  114.    w               if (iparams[i] < 16)
+  115.    w w-------<       for (j = 1; j <= 2; ++j)
+  116.    w w                 if (iparams[(i+j)%3] > iparams[i])
+  117.    w w------->           iparams[i] = iparams[(i+j)%3];
+  118.    w               if (iparams[i] < 16)
+  119.    w                 iparams[i] = 16;
+  120.    w--------->   }
+  121.                
+  122.                // Broadcast values of iparams to all MPI processes
+  123.                #ifndef HPCG_NO_MPI
+  124.                  if (broadcastParams) {
+  125.  +                 MPI_Bcast( iparams, nparams, MPI_INT, 0, MPI_COMM_WORLD );
+  126.                  }
+  127.                #endif
+  128.                
+  129.    VcsR-----<>   params.nx = iparams[0];
+  130.                  params.ny = iparams[1];
+  131.                  params.nz = iparams[2];
+  132.                
+  133.                  params.runningTime = iparams[3];
+  134.                  params.pz = iparams[4];
+  135.                  params.zl = iparams[5];
+  136.                  params.zu = iparams[6];
+  137.                
+  138.                  params.npx = iparams[7];
+  139.                  params.npy = iparams[8];
+  140.                  params.npz = iparams[9];
+  141.                
+  142.                #ifndef HPCG_NO_MPI
+  143.  +               MPI_Comm_rank( MPI_COMM_WORLD, &params.comm_rank );
+  144.  +               MPI_Comm_size( MPI_COMM_WORLD, &params.comm_size );
+  145.                #else
+  146.                  params.comm_rank = 0;
+  147.                  params.comm_size = 1;
+  148.                #endif
+  149.                
+  150.                #ifdef HPCG_NO_OPENMP
+  151.                  params.numThreads = 1;
+  152.                #else
+  153.                  #pragma omp parallel
+  154.  + M--------<>   params.numThreads = omp_get_num_threads();
+  155.                #endif
+  156.                //  for (i = 0; i < nparams; ++i) std::cout << "rank = "<< params.comm_rank << " iparam["<<i<<"] = " << iparams[i] << "\n";
+  157.                
+  158.  +               time ( &rawtime );
+  159.  +               ptm = localtime(&rawtime);
+  160.  +               sprintf( fname, "hpcg%04d%02d%02dT%02d%02d%02d.txt",
+  161.                      1900 + ptm->tm_year, ptm->tm_mon+1, ptm->tm_mday, ptm->tm_hour, ptm->tm_min, ptm->tm_sec );
+  162.                
+  163.                  if (0 == params.comm_rank) {
+  164.  +                 HPCG_fout.open(fname);
+  165.                  } else {
+  166.                #if defined(HPCG_DEBUG) || defined(HPCG_DETAILED_DEBUG)
+  167.                    sprintf( fname, "hpcg%04d%02d%02dT%02d%02d%02d_%d.txt",
+  168.                        1900 + ptm->tm_year, ptm->tm_mon+1, ptm->tm_mday, ptm->tm_hour, ptm->tm_min, ptm->tm_sec, params.comm_rank );
+  169.                    HPCG_fout.open(fname);
+  170.                #else
+  171.  +                 HPCG_fout.open(NULLDEVICE);
+  172.                #endif
+  173.                  }
+  174.                
+  175.                  free( iparams );
+  176.                
+  177.                  return 0;
+  178.                }
+
+CC-3021 CC: IPA __sti___ab15bd53_eeb04358, File = iostream, Line = 74, Column = 25 
+  "Init" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA __sti___ab15bd53_eeb04358, File = init.cpp, Line = 41, Column = 15 
+  "<unnamed>" was not inlined because the compiler was unable to locate the routine.
+
+CC-6204 CC: VECTOR HPCG_Init, File = init.cpp, Line = 82 
+  A loop was vectorized.
+
+CC-6287 CC: VECTOR HPCG_Init, File = init.cpp, Line = 85 
+  A loop was not vectorized because it contains a call to function "sscanf" on line 86.
+
+CC-3021 CC: IPA HPCG_Init, File = init.cpp, Line = 86, Column = 5 
+  "sscanf" was not inlined because the compiler was unable to locate the routine.
+
+CC-6287 CC: VECTOR HPCG_Init, File = init.cpp, Line = 89 
+  A loop was not vectorized because it contains a call to function "strlen" on line 91.
+
+CC-6287 CC: VECTOR HPCG_Init, File = init.cpp, Line = 90 
+  A loop was not vectorized because it contains a call to function "strlen" on line 91.
+
+CC-3001 CC: IPA HPCG_Init, File = init.cpp, Line = 91, Column = 7 
+  Tiny routine "startswith"(/cray/css/users/smehta/hpcg-orig/src/init.cpp:44) was textually inlined.
+
+CC-3021 CC: IPA HPCG_Init, File = init.cpp, Line = 92, Column = 9 
+  "sscanf" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA HPCG_Init, File = init.cpp, Line = 99, Column = 5 
+  "ReadHpcgDat" was not inlined because the compiler was unable to locate the routine.
+
+CC-6284 CC: VECTOR HPCG_Init, File = init.cpp, Line = 113 
+  A loop was not vectorized because it is faster in scalar mode.
+
+CC-6008 CC: SCALAR HPCG_Init, File = init.cpp, Line = 113 
+  A loop was unwound.
+
+CC-6008 CC: SCALAR HPCG_Init, File = init.cpp, Line = 115 
+  A loop was unwound.
+
+CC-3021 CC: IPA HPCG_Init, File = init.cpp, Line = 125, Column = 5 
+  "MPI_Bcast" was not inlined because the compiler was unable to locate the routine.
+
+CC-6079 CC: SCALAR HPCG_Init, File = init.cpp, Line = 129 
+  A loop was created by rerolling 4 statements.
+
+CC-6214 CC: VECTOR HPCG_Init, File = init.cpp, Line = 129 
+  A loop was conditionally vectorized with a single vector iteration.
+
+CC-3021 CC: IPA HPCG_Init, File = init.cpp, Line = 143, Column = 3 
+  "MPI_Comm_rank" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA HPCG_Init, File = init.cpp, Line = 144, Column = 3 
+  "MPI_Comm_size" was not inlined because the compiler was unable to locate the routine.
+
+CC-6823 CC: THREAD HPCG_Init, File = init.cpp, Line = 154 
+  A region starting at line 154 and ending at line 154 was multi-threaded.
+
+CC-3021 CC: IPA HPCG_Init, File = init.cpp, Line = 154, Column = 3 
+  "omp_get_num_threads" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA HPCG_Init, File = init.cpp, Line = 158, Column = 3 
+  "time" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA HPCG_Init, File = init.cpp, Line = 159, Column = 3 
+  "localtime" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA HPCG_Init, File = init.cpp, Line = 160, Column = 3 
+  "sprintf" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA HPCG_Init, File = init.cpp, Line = 164, Column = 5 
+  "open" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA HPCG_Init, File = init.cpp, Line = 171, Column = 5 
+  "open" was not inlined because the compiler was unable to locate the routine.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

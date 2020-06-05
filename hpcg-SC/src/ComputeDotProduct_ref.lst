@@ -1,0 +1,191 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S u m m a r y   R e p o r t
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Compilation
+-----------
+File     : /cray/css/users/smehta/hpcg-orig/src/ComputeDotProduct_ref.cpp
+Compiled : 2020-06-04  19:33:18
+Compiler : Version 10.0.x.x
+Ftnlx    : Version 10.0.x.x 
+Target   : arm64
+Command  : driver.CC -h cpu=arm-nsp1 -h network=aries -h dynamic -D __CRAYXC
+           -D __CRAY_ARM_NSP1 -D __CRAY_AARCH64
+           -D __CRAYXT_COMPUTE_LINUX_TARGET -I ./src -I ./src/CCE -h list=m
+           -h omp -c
+           -o src/ComputeDotProduct_ref.o src/ComputeDotProduct_ref.cpp
+           -W l,-rpath=/cray/css/compiler/builds/release/cce/10.0.20200603211505
+           _15e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/lib
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/craylibs
+           -isystem /opt/gcc/8.1.0/snos/include/g++
+           -isystem /opt/gcc/8.1.0/snos/include/g++/aarch64-unknown-linux-gnu
+           -isystem /opt/gcc/8.1.0/snos/include/g++/backward
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include
+           -isystem /opt/gcc/8.1.0/snos/lib/gcc/aarch64-unknown-linux-gnu/8.1.0/
+           include-fixed
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/c++
+           -isystem /cray/css/compiler/builds/release/cce/10.0.20200603211505_15
+           e263491fba367aa4f23381e4b9aafeb285582e/cce/aarch64/include/basic
+           -isystem /opt/gcc/8.1.0/snos/include
+           -isystem /cray/css/pesim/armv8-sve-cross/moduledirs/aarch64-sle-sysro
+           ot/12.1/usr/include
+           -I /cray/css/pesim/armv8-sve-cross/moduledirs/anl-mpich/3.2.0.4/aarch
+           64/gige/mpich-cray/8.6/include
+
+clx report
+------------
+Source   : /cray/css/users/smehta/hpcg-orig/src/ComputeDotProduct_ref.cpp
+Date     : 06/04/2020  19:33:19
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                          S o u r c e   L i s t i n g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+     %%%    L o o p m a r k   L e g e n d    %%%
+
+     Primary Loop Type        Modifiers
+     ------- ---- ----        ---------
+     A - Pattern matched      a - atomic memory operation
+                              b - blocked
+     C - Collapsed            c - conditional and/or computed
+     D - Deleted               
+     E - Cloned                
+     F - Flat - No calls      f - fused
+     G - Accelerated          g - partitioned
+     I - Inlined              i - interchanged
+     M - Multithreaded        m - partitioned
+                              n - non-blocking remote transfer
+                              p - partial
+     R - Rerolling            r - unrolled
+                              s - shortloop
+     V - Vectorized           w - unwound
+
+     + - More messages listed at end of listing
+     ------------------------------------------
+
+
+    1.                
+    2.                //@HEADER
+    3.                // ***************************************************
+    4.                //
+    5.                // HPCG: High Performance Conjugate Gradient Benchmark
+    6.                //
+    7.                // Contact:
+    8.                // Michael A. Heroux ( maherou@sandia.gov)
+    9.                // Jack Dongarra     (dongarra@eecs.utk.edu)
+   10.                // Piotr Luszczek    (luszczek@eecs.utk.edu)
+   11.                //
+   12.                // ***************************************************
+   13.                //@HEADER
+   14.                
+   15.                /*!
+   16.                 @file ComputeDotProduct_ref.cpp
+   17.                
+   18.                 HPCG routine
+   19.                 */
+   20.                
+   21.                #ifndef HPCG_NO_MPI
+   22.                #include <mpi.h>
+   23.                #include "mytimer.hpp"
+   24.                #endif
+   25.                #ifndef HPCG_NO_OPENMP
+   26.                #include <omp.h>
+   27.                #endif
+   28.                #include <cassert>
+   29.                #include "ComputeDotProduct_ref.hpp"
+   30.                
+   31.                /*!
+   32.                  Routine to compute the dot product of two vectors where:
+   33.                
+   34.                  This is the reference dot-product implementation.  It _CANNOT_ be modified for the
+   35.                  purposes of this benchmark.
+   36.                
+   37.                  @param[in] n the number of vector elements (on this processor)
+   38.                  @param[in] x, y the input vectors
+   39.                  @param[in] result a pointer to scalar value, on exit will contain result.
+   40.                  @param[out] time_allreduce the time it took to perform the communication between processes
+   41.                
+   42.                  @return returns 0 upon success and non-zero otherwise
+   43.                
+   44.                  @see ComputeDotProduct
+   45.                */
+   46.                int ComputeDotProduct_ref(const local_int_t n, const Vector & x, const Vector & y,
+   47.                    double & result, double & time_allreduce) {
+   48.                  assert(x.localLength>=n); // Test vector lengths
+   49.                  assert(y.localLength>=n);
+   50.                
+   51.                  double local_result = 0.0;
+   52.                  double * xv = x.values;
+   53.                  double * yv = y.values;
+   54.                  if (yv==xv) {
+   55.                #ifndef HPCG_NO_OPENMP
+   56.                    #pragma omp parallel for reduction (+:local_result)
+   57.                #endif
+   58.  + M-<mVr4--<>     for (local_int_t i=0; i<n; i++) local_result += xv[i]*xv[i];
+   59.    M             } else {
+   60.    M           #ifndef HPCG_NO_OPENMP
+   61.    M               #pragma omp parallel for reduction (+:local_result)
+   62.    M           #endif
+   63.  + M->mVr4--<>     for (local_int_t i=0; i<n; i++) local_result += xv[i]*yv[i];
+   64.                  }
+   65.                
+   66.                #ifndef HPCG_NO_MPI
+   67.                  // Use MPI's reduce function to collect all partial sums
+   68.  +               double t0 = mytimer();
+   69.                  double global_result = 0.0;
+   70.  +               MPI_Allreduce(&local_result, &global_result, 1, MPI_DOUBLE, MPI_SUM,
+   71.                      MPI_COMM_WORLD);
+   72.                  result = global_result;
+   73.  +               time_allreduce += mytimer() - t0;
+   74.                #else
+   75.                  time_allreduce += 0.0;
+   76.                  result = local_result;
+   77.                #endif
+   78.                
+   79.                  return 0;
+   80.                }
+
+CC-6005 CC: SCALAR ComputeDotProduct_ref, File = ComputeDotProduct_ref.cpp, Line = 58 
+  A loop was unrolled 4 times.
+
+CC-6831 CC: THREAD ComputeDotProduct_ref, File = ComputeDotProduct_ref.cpp, Line = 58 
+  An expanded multi-threaded region was created starting near line 58 and ending near line 63.
+
+CC-6824 CC: THREAD ComputeDotProduct_ref, File = ComputeDotProduct_ref.cpp, Line = 58 
+  A region starting at line 58 and ending at line 58 was multi-threaded and merged with an expanded multi-thread region.
+
+CC-6204 CC: VECTOR ComputeDotProduct_ref, File = ComputeDotProduct_ref.cpp, Line = 58 
+  A loop was vectorized.
+
+CC-6817 CC: THREAD ComputeDotProduct_ref, File = ComputeDotProduct_ref.cpp, Line = 58 
+  A loop was partitioned.
+
+CC-6005 CC: SCALAR ComputeDotProduct_ref, File = ComputeDotProduct_ref.cpp, Line = 63 
+  A loop was unrolled 4 times.
+
+CC-6824 CC: THREAD ComputeDotProduct_ref, File = ComputeDotProduct_ref.cpp, Line = 63 
+  A region starting at line 63 and ending at line 63 was multi-threaded and merged with an expanded multi-thread region.
+
+CC-6204 CC: VECTOR ComputeDotProduct_ref, File = ComputeDotProduct_ref.cpp, Line = 63 
+  A loop was vectorized.
+
+CC-6817 CC: THREAD ComputeDotProduct_ref, File = ComputeDotProduct_ref.cpp, Line = 63 
+  A loop was partitioned.
+
+CC-3021 CC: IPA ComputeDotProduct_ref, File = ComputeDotProduct_ref.cpp, Line = 68, Column = 13 
+  "mytimer" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA ComputeDotProduct_ref, File = ComputeDotProduct_ref.cpp, Line = 70, Column = 3 
+  "MPI_Allreduce" was not inlined because the compiler was unable to locate the routine.
+
+CC-3021 CC: IPA ComputeDotProduct_ref, File = ComputeDotProduct_ref.cpp, Line = 73, Column = 3 
+  "mytimer" was not inlined because the compiler was unable to locate the routine.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
