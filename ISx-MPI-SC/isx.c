@@ -57,8 +57,6 @@ uint64_t MAX_KEY_VAL; // The maximum possible generated key value
 int my_rank;
 int comm_size;
 
-void hbm_alloc(void* ptr, int len) {}
-
 #ifdef PERMUTE
 int * permute_array;
 #endif
@@ -515,15 +513,13 @@ static inline int * count_local_keys(KEY_TYPE const * restrict const my_bucket_k
 
   const int my_min_key = my_rank * BUCKET_WIDTH;
 
-  // Count the occurences of each key in my bucket
+
 #pragma novector
   for(int i = 0; i < my_bucket_size; ++i){
     const unsigned int key_index = my_bucket_keys[i] - my_min_key;
-    unsigned int key_index1 = my_bucket_keys[i+48] - my_min_key;
-    #pragma _CRI prefetch (level(1)) my_local_key_counts[key_index1]
 
-//    assert(my_bucket_keys[i] >= my_min_key);
-//    assert(key_index < BUCKET_WIDTH);
+    assert(my_bucket_keys[i] >= my_min_key);
+    assert(key_index < BUCKET_WIDTH);
 
     my_local_key_counts[key_index]++;
   }
